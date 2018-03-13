@@ -1,0 +1,4 @@
+package vci
+
+const ShowEnvironmentScript = `
+`
