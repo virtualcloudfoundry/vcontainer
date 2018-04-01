@@ -40,14 +40,19 @@ func (v *vcontainerHandler) Run(ctx context.Context, spec *vcontainermodels.Proc
 	defer containerInterop.Close()
 	v.logger.Info("vcontainer-run-spec", lager.Data{"spec": spec})
 
-	containerInterop.DispatchRunTask(interop.RunCommand{
+	err = containerInterop.DispatchRunTask(interop.RunCommand{
 		Path: spec.Path,
 		Args: spec.Args,
 		Env:  spec.Env,
 		User: spec.User,
 	})
 
-	return nil, verrors.New("not implemented")
+	if err != nil {
+		v.logger.Error("vcontainer-run-dispatch-run-task-failed", err)
+		return nil, verrors.New("failed to dispatch run task.")
+	}
+
+	return nil, nil
 }
 
 func (v *vcontainerHandler) Stop(ctx context.Context, stop *vcontainermodels.StopMessage) (*google_protobuf.Empty, error) {

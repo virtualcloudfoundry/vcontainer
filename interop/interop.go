@@ -245,6 +245,10 @@ func (c *containerInterop) newTask(taskFolder string, task Task, prio Priority) 
 	return nil
 }
 
+func (c *containerInterop) waitForTask() error {
+	return nil
+}
+
 func (c *containerInterop) Open() error {
 	mountedRootFolder, err := c.mountContainerRoot(c.handle)
 	if err != nil {
@@ -283,7 +287,7 @@ func (c *containerInterop) DispatchRunTask(cmd RunCommand) error {
 		return verrors.New("failed to create task.")
 	}
 
-	return verrors.New("not implemented")
+	return nil
 }
 
 func (c *containerInterop) convertCommandToTask(cmd RunCommand) (Task, error) {
