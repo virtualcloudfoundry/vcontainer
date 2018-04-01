@@ -65,12 +65,13 @@ type ContainerInterop interface {
 	// unmount the swap root folder in the host.
 	Close() error
 	// dispatch one task to the container, online.
-	DispatchRunTask(cmd RunCommand) error
+	DispatchRunTask(cmd RunCommand) (string, error)
 	// copy the src folder to the prepared swap root. and write one task into it.
-	DiskpatchFolderTask(src, dest string) error
+	DiskpatchFolderTask(src, dest string) (string, error)
 	// copy the file: src
 	PrepareExtractFile(dest string) (string, *os.File, error)
 	DispatchExtractFileTask(fileToExtract, dest, user string) error
+	WaitForTaskExit(taskId string) error
 }
 
 type containerInterop struct {
@@ -226,27 +227,28 @@ func (c *containerInterop) getEntryScriptContent() string {
 	return entryScript
 }
 
-func (c *containerInterop) newTask(taskFolder string, task Task, prio Priority) error {
+func (c *containerInterop) newTask(taskFolder string, task Task, prio Priority) (string, error) {
 	fileId := guid.NewGUID()
+	taskId := fileId.String()
 	taskFolderFullPath := filepath.Join(c.mountedPath, taskFolder, fmt.Sprintf("%d", prio))
 	os.MkdirAll(taskFolderFullPath, 0700)
 
-	filePath := filepath.Join(c.mountedPath, taskFolder, fmt.Sprintf("%d", prio), fmt.Sprintf("%s_%d.sh", fileId.String(), time.Now().UnixNano()))
+	filePath := filepath.Join(c.mountedPath, taskFolder, fmt.Sprintf("%d", prio), fmt.Sprintf("%s_%d.sh", taskId, time.Now().UnixNano()))
 	f, err := os.Create(filePath)
 	// TODO better error handling.
 	f.WriteString(task.Script)
 	if err != nil {
 		c.logger.Error("container-interop-new-task-write-failed", err)
-		return verrors.New("failed to create entry script.")
+		return "", verrors.New("failed to create entry script.")
 	}
 	if f != nil {
 		f.Close()
 	}
-	return nil
+	return taskId, nil
 }
 
-func (c *containerInterop) waitForTask() error {
-	return nil
+func (c *containerInterop) WaitForTaskExit(taskId string) error {
+	return verrors.New("not implemented.")
 }
 
 func (c *containerInterop) Open() error {
@@ -274,20 +276,20 @@ func (c *containerInterop) Close() error {
 	return nil
 }
 
-func (c *containerInterop) DispatchRunTask(cmd RunCommand) error {
+func (c *containerInterop) DispatchRunTask(cmd RunCommand) (string, error) {
 	task, err := c.convertCommandToTask(cmd)
 
 	if err != nil {
 		c.logger.Error("container-interop-convert-command-to-task-failed", err)
-		return verrors.New("failed to dispatch run task.")
+		return "", verrors.New("failed to dispatch run task.")
 	}
-
-	if err = c.newTask(c.getOneOffTaskFolder(), task, Run); err != nil {
+	var taskId string
+	if taskId, err = c.newTask(c.getOneOffTaskFolder(), task, Run); err != nil {
 		c.logger.Error("container-interop-new-task-failed", err)
-		return verrors.New("failed to create task.")
+		return "", verrors.New("failed to create task.")
 	}
 
-	return nil
+	return taskId, nil
 }
 
 func (c *containerInterop) convertCommandToTask(cmd RunCommand) (Task, error) {
@@ -306,27 +308,28 @@ func (c *containerInterop) convertCommandToTask(cmd RunCommand) (Task, error) {
 	}, nil
 }
 
-func (c *containerInterop) DiskpatchFolderTask(src, dst string) error {
+func (c *containerInterop) DiskpatchFolderTask(src, dst string) (string, error) {
 	fsync := fsync.NewFSync(c.logger)
 	relativePath := fmt.Sprintf("%s/%s", c.getSwapInFolder(), dst) // ./tmp/app
 	targetFolder := filepath.Join(c.mountedPath, relativePath)
 	err := fsync.CopyFolder(src, targetFolder)
 	if err != nil {
 		c.logger.Error("container-interop-copy-folder-failed", err, lager.Data{"src": src, "dest": dst})
-		return verrors.New("failed to copy folder.")
+		return "", verrors.New("failed to copy folder.")
 	}
 	srcFolderPath := filepath.Join(common.GetSwapRoot(), relativePath)
 	destFolderPath := dst
 
 	postCopyTask := fmt.Sprintf("mkdir -p %s\nrsync -a %s/ %s\n", destFolderPath, srcFolderPath, destFolderPath)
-	if err = c.newTask(c.getConstantTaskFolder(), Task{
+	var taskId string
+	if taskId, err = c.newTask(c.getConstantTaskFolder(), Task{
 		Script: postCopyTask,
 	}, StreamIn); err != nil {
 		c.logger.Error("container-interop-new-task-failed", err)
-		return verrors.New("failed to create task.")
+		return "", verrors.New("failed to create task.")
 	}
 
-	return nil
+	return taskId, nil
 }
 
 // prepare the task

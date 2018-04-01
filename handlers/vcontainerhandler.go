@@ -40,7 +40,7 @@ func (v *vcontainerHandler) Run(ctx context.Context, spec *vcontainermodels.Proc
 	defer containerInterop.Close()
 	v.logger.Info("vcontainer-run-spec", lager.Data{"spec": spec})
 
-	err = containerInterop.DispatchRunTask(interop.RunCommand{
+	_, err = containerInterop.DispatchRunTask(interop.RunCommand{
 		Path: spec.Path,
 		Args: spec.Args,
 		Env:  spec.Env,
