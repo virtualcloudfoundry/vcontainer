@@ -137,7 +137,7 @@ func (c *containerInterop) Prepare() (*ContainerInteropInfo, error) {
 		return nil, verrors.New(fmt.Sprintf("failed to prepare folder %s.", taskFolderFullPath))
 	}
 
-	taskOutputPath := filepath.Join(c.getSwapOutFolder(), c.getTaskOutputFolder())
+	taskOutputPath := filepath.Join(c.mountedPath, c.getSwapOutFolder(), c.getTaskOutputFolder())
 	err = os.MkdirAll(taskOutputPath, 0700)
 	if err != nil {
 		return nil, verrors.New(fmt.Sprintf("failed to prepare folder %s.", taskOutputPath))
