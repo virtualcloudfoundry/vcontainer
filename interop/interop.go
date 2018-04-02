@@ -317,6 +317,8 @@ func (c *containerInterop) DiskpatchFolderTask(src, dst string) (string, error) 
 	destFolderPath := dst
 
 	mkdirCommand := RunCommand{
+		User: "root",
+		Env:  []string{},
 		Path: "mkdir",
 		Args: []string{"-p", destFolderPath},
 	}
@@ -333,6 +335,8 @@ func (c *containerInterop) DiskpatchFolderTask(src, dst string) (string, error) 
 	}
 
 	syncCommand := RunCommand{
+		User: "root",
+		Env:  []string{},
 		Path: "rsync",
 		Args: []string{"-a", fmt.Sprintf("%s/", srcFolderPath), destFolderPath},
 	}
@@ -416,7 +420,7 @@ func (c *containerInterop) scheduleCommand(taskFolder string, cmd *RunCommand, p
 	buffer.WriteString(fmt.Sprintf(`su - %s -c 'export HOME=/home/%s/app
 			export PORT=8080
 			export APP_ROOT=/home/%s/app
-			%s %s
+			%s %s'
 			`, cmd.User, cmd.User, cmd.User, cmd.Path, strings.Join(args, " ")))
 
 	buffer.WriteString(c.getTaskOutputScript(cmd))
