@@ -1,6 +1,7 @@
 package interop
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -9,7 +10,6 @@ import (
 	"time"
 
 	"code.cloudfoundry.org/lager"
-	"github.com/marstr/guid"
 	uuid "github.com/satori/go.uuid"
 	"github.com/virtualcloudfoundry/goaci/aci"
 	"github.com/virtualcloudfoundry/vcontainer/common"
@@ -26,10 +26,6 @@ import (
 // 	  a. one tasks folder ends with .task
 // 3. one daemon to interate with the tasks.
 
-type Task struct {
-	Script string
-}
-
 type Priority int32
 
 const (
@@ -38,10 +34,11 @@ const (
 )
 
 type RunCommand struct {
+	ID   string
+	User string
+	Env  []string
 	Path string
 	Args []string
-	Env  []string
-	User string
 }
 
 func NewContainerInterop(handle string, logger lager.Logger) ContainerInterop {
@@ -64,13 +61,17 @@ type ContainerInterop interface {
 	Open() error
 	// unmount the swap root folder in the host.
 	Close() error
-	// dispatch one task to the container, online.
-	DispatchRunTask(cmd RunCommand) (string, error)
+	// dispatch one command to the container.
+	DispatchRunCommand(cmd RunCommand) (string, error)
+	// dispatch one task containing a run command array.
+	// DispatchRunTask(task RunTask) (string, error)
 	// copy the src folder to the prepared swap root. and write one task into it.
 	DiskpatchFolderTask(src, dest string) (string, error)
-	// copy the file: src
+	// prepare an file opened for writing, so the extract task can extract it to the dest folder in the container.
 	PrepareExtractFile(dest string) (string, *os.File, error)
-	DispatchExtractFileTask(fileToExtract, dest, user string) error
+	// dispatch an extract file task.
+	DispatchExtractFileTask(fileToExtract, dest, user string) (string, error)
+	// wait for the task with the taskId exit.
 	WaitForTaskExit(taskId string) error
 }
 
@@ -138,8 +139,13 @@ func (c *containerInterop) getSwapInFolder() string {
 	return "./in"
 }
 
+// out is the root folder of the output.
 func (c *containerInterop) getSwapOutFolder() string {
 	return "./out"
+}
+
+func (c *containerInterop) getTaskOutputFolder() string {
+	return "tasks"
 }
 
 func (c *containerInterop) getSwapRoot() string {
@@ -227,28 +233,9 @@ func (c *containerInterop) getEntryScriptContent() string {
 	return entryScript
 }
 
-func (c *containerInterop) newTask(taskFolder string, task Task, prio Priority) (string, error) {
-	fileId := guid.NewGUID()
-	taskId := fileId.String()
-	taskFolderFullPath := filepath.Join(c.mountedPath, taskFolder, fmt.Sprintf("%d", prio))
-	os.MkdirAll(taskFolderFullPath, 0700)
-
-	filePath := filepath.Join(c.mountedPath, taskFolder, fmt.Sprintf("%d", prio), fmt.Sprintf("%s_%d.sh", taskId, time.Now().UnixNano()))
-	f, err := os.Create(filePath)
-	// TODO better error handling.
-	f.WriteString(task.Script)
-	if err != nil {
-		c.logger.Error("container-interop-new-task-write-failed", err)
-		return "", verrors.New("failed to create entry script.")
-	}
-	if f != nil {
-		f.Close()
-	}
-	return taskId, nil
-}
-
 func (c *containerInterop) WaitForTaskExit(taskId string) error {
-	return verrors.New("not implemented.")
+	time.Sleep(time.Second * 30) // mock for 30 seconds now.
+	return nil                   //verrors.New("not implemented.")
 }
 
 func (c *containerInterop) Open() error {
@@ -276,41 +263,18 @@ func (c *containerInterop) Close() error {
 	return nil
 }
 
-func (c *containerInterop) DispatchRunTask(cmd RunCommand) (string, error) {
-	task, err := c.convertCommandToTask(cmd)
-
-	if err != nil {
-		c.logger.Error("container-interop-convert-command-to-task-failed", err)
-		return "", verrors.New("failed to dispatch run task.")
-	}
-	var taskId string
-	if taskId, err = c.newTask(c.getOneOffTaskFolder(), task, Run); err != nil {
+func (c *containerInterop) DispatchRunCommand(cmd RunCommand) (string, error) {
+	if err := c.scheduleCommand(c.getOneOffTaskFolder(), &cmd, Run); err != nil {
 		c.logger.Error("container-interop-new-task-failed", err)
 		return "", verrors.New("failed to create task.")
 	}
 
-	return taskId, nil
-}
-
-func (c *containerInterop) convertCommandToTask(cmd RunCommand) (Task, error) {
-	// use the "" instead of space
-	args := make([]string, len(cmd.Args))
-	for i, _ := range cmd.Args {
-		if cmd.Args[i] == "" {
-			args[i] = "\"\""
-		} else {
-			args[i] = cmd.Args[i]
-		}
-	}
-	script := fmt.Sprintf("#!/bin/bash\nsu - %s -c 'export HOME=/home/%s/app\nexport PORT=8080\nexport APP_ROOT=/home/%s/app\n%s %s'", cmd.User, cmd.User, cmd.User, cmd.Path, strings.Join(args, " "))
-	return Task{
-		Script: script,
-	}, nil
+	return cmd.ID, nil
 }
 
 func (c *containerInterop) DiskpatchFolderTask(src, dst string) (string, error) {
 	fsync := fsync.NewFSync(c.logger)
-	relativePath := fmt.Sprintf("%s/%s", c.getSwapInFolder(), dst) // ./tmp/app
+	relativePath := fmt.Sprintf("%s/%s", c.getSwapInFolder(), dst)
 	targetFolder := filepath.Join(c.mountedPath, relativePath)
 	err := fsync.CopyFolder(src, targetFolder)
 	if err != nil {
@@ -320,21 +284,42 @@ func (c *containerInterop) DiskpatchFolderTask(src, dst string) (string, error) 
 	srcFolderPath := filepath.Join(common.GetSwapRoot(), relativePath)
 	destFolderPath := dst
 
-	postCopyTask := fmt.Sprintf("mkdir -p %s\nrsync -a %s/ %s\n", destFolderPath, srcFolderPath, destFolderPath)
-	var taskId string
-	if taskId, err = c.newTask(c.getConstantTaskFolder(), Task{
-		Script: postCopyTask,
-	}, StreamIn); err != nil {
+	mkdirCommand := RunCommand{
+		Path: "mkdir",
+		Args: []string{"-p", destFolderPath},
+	}
+
+	if err = c.scheduleCommand(c.getConstantTaskFolder(), &mkdirCommand, StreamIn); err != nil {
 		c.logger.Error("container-interop-new-task-failed", err)
 		return "", verrors.New("failed to create task.")
 	}
 
-	return taskId, nil
+	err = c.WaitForTaskExit(mkdirCommand.ID)
+	if err != nil {
+		c.logger.Error("container-interop-dispatch-folder-task-prepare-failed", err)
+		return "", verrors.New("failed to dispatch folder task.")
+	}
+
+	syncCommand := RunCommand{
+		Path: "rsync",
+		Args: []string{"-a", fmt.Sprintf("%s/", srcFolderPath), destFolderPath},
+	}
+
+	if err = c.scheduleCommand(c.getConstantTaskFolder(), &syncCommand, StreamIn); err != nil {
+		c.logger.Error("container-interop-new-task-failed", err)
+		return "", verrors.New("failed to create task.")
+	}
+
+	return syncCommand.ID, nil
 }
 
 // prepare the task
 func (c *containerInterop) PrepareExtractFile(dest string) (string, *os.File, error) {
-	id, _ := uuid.NewV4()
+	id, err := uuid.NewV4()
+	if err != nil {
+		c.logger.Fatal("Couldn't generate uuid", err)
+		return "", nil, err
+	}
 	fileToExtractName := fmt.Sprintf("extract_%s", id.String())
 	filePath := filepath.Join(c.mountedPath, c.getSwapInFolder(), fileToExtractName)
 	file, err := os.Create(filePath)
@@ -346,15 +331,79 @@ func (c *containerInterop) PrepareExtractFile(dest string) (string, *os.File, er
 	return fileToExtractName, file, nil
 }
 
-func (c *containerInterop) DispatchExtractFileTask(fileToExtractName, dest, user string) error {
+func (c *containerInterop) DispatchExtractFileTask(fileToExtractName, dest, user string) (string, error) {
 	c.logger.Info("container-interop-dispatch-extract-file-task")
+	extractCmd := RunCommand{
+		User: user,
+		Env:  []string{},
+		Path: "tar",
+		Args: []string{"-C", dest, "-xf", filepath.Join(c.getSwapRoot(), c.getSwapInFolder(), fileToExtractName)},
+	}
 
-	postExtractTask := fmt.Sprintf("#!/bin/bash\n su - %s -c 'tar -C %s -xf %s'\n", user, dest, filepath.Join(c.getSwapRoot(), c.getSwapInFolder(), fileToExtractName))
-	c.newTask(c.getOneOffTaskFolder(), Task{
-		Script: postExtractTask,
-	}, StreamIn)
+	if err := c.scheduleCommand(c.getOneOffTaskFolder(), &extractCmd, StreamIn); err != nil {
+		c.logger.Error("container-interop-new-task-failed", err)
+		return "", verrors.New("failed to create task.")
+	}
 
+	return extractCmd.ID, nil
+}
+
+func (c *containerInterop) scheduleCommand(taskFolder string, cmd *RunCommand, prio Priority) error {
+	fileId, err := uuid.NewV4()
+	if err != nil {
+		c.logger.Fatal("Couldn't generate uuid", err)
+		return err
+	}
+	taskId := fileId.String()
+	cmd.ID = taskId
+	taskFolderFullPath := filepath.Join(c.mountedPath, taskFolder, fmt.Sprintf("%d", prio))
+	err = os.MkdirAll(taskFolderFullPath, 0700)
+	if err != nil {
+		c.logger.Error("container-interop-new-task-mkdir-all-failed", err)
+	}
+
+	filePath := filepath.Join(c.mountedPath, taskFolder, fmt.Sprintf("%d", prio), fmt.Sprintf("%s_%d.sh", taskId, time.Now().UnixNano()))
+	f, err := os.Create(filePath)
+	// TODO better error handling.
+	if err != nil {
+		c.logger.Error("container-interop-new-task-create-file-failed", err)
+		return verrors.New("failed to create entry script.")
+	}
+	if f != nil {
+		defer f.Close()
+	}
+	var buffer bytes.Buffer
+	buffer.WriteString("#!/bin/bash\n")
+	// convert the run commands to the task.
+
+	args := make([]string, len(cmd.Args))
+	for i, _ := range cmd.Args {
+		if cmd.Args[i] == "" {
+			args[i] = "\"\""
+		} else {
+			args[i] = cmd.Args[i]
+		}
+	}
+
+	buffer.WriteString(fmt.Sprintf(`su - %s -c 'export HOME=/home/%s/app
+			export PORT=8080
+			export APP_ROOT=/home/%s/app
+			%s %s
+			`, cmd.User, cmd.User, cmd.User, cmd.Path, strings.Join(args, " ")))
+
+	buffer.WriteString(c.getTaskOutputScript(cmd))
+
+	_, err = f.WriteString(buffer.String())
+	if err != nil {
+		c.logger.Error("container-interop-new-task-write-failed", err)
+		return verrors.New("failed to create entry script.")
+	}
 	return nil
+}
+
+func (c *containerInterop) getTaskOutputScript(cmd *RunCommand) string {
+	taskOutputPath := filepath.Join(c.getSwapOutFolder(), c.getTaskOutputFolder(), cmd.ID+".out")
+	return fmt.Sprintf("echo $? > %s", taskOutputPath)
 }
 
 func (c *containerInterop) mountContainerRoot(handle string) (string, error) {
@@ -363,6 +412,9 @@ func (c *containerInterop) mountContainerRoot(handle string) (string, error) {
 	// 1. prepare the volumes.
 	// create share folder
 	err := vs.CreateShareFolder(shareName)
+	if err != nil {
+		c.logger.Error("container-interop-mount-container-root-create-share-folder-failed", err)
+	}
 	mountedRootFolder, err := ioutil.TempDir("/tmp", "folder_to_azure_")
 	storageID := config.GetVContainerEnvInstance().ACIConfig.StorageId
 	storageSecret := config.GetVContainerEnvInstance().ACIConfig.StorageSecret
@@ -385,6 +437,7 @@ func (c *containerInterop) mountContainerRoot(handle string) (string, error) {
 	mounter := mount.NewMounter()
 	err = mounter.Mount(azureFilePath, mountedRootFolder, "cifs", options)
 	if err != nil {
+		c.logger.Error("container-interop-mount-container-root-mount-failed", err)
 		return "", err
 	}
 	return mountedRootFolder, nil
