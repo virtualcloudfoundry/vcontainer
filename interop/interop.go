@@ -63,8 +63,6 @@ type ContainerInterop interface {
 	Close() error
 	// dispatch one command to the container.
 	DispatchRunCommand(cmd RunCommand) (string, error)
-	// dispatch one task containing a run command array.
-	// DispatchRunTask(task RunTask) (string, error)
 	// copy the src folder to the prepared swap root. and write one task into it.
 	DiskpatchFolderTask(src, dest string) (string, error)
 	// prepare an file opened for writing, so the extract task can extract it to the dest folder in the container.
@@ -267,7 +265,8 @@ func (c *containerInterop) getEntryScriptContent() string {
 
 func (c *containerInterop) WaitForTaskExit(taskId string) error {
 	time.Sleep(time.Second * 30) // mock for 30 seconds now.
-	return nil                   //verrors.New("not implemented.")
+
+	return nil //verrors.New("not implemented.")
 }
 
 func (c *containerInterop) Open() error {
