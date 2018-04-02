@@ -317,7 +317,7 @@ func (c *containerInterop) DiskpatchFolderTask(src, dst string) (string, error) 
 	destFolderPath := dst
 
 	mkdirCommand := RunCommand{
-		User: "root",
+		User: "vcap",
 		Env:  []string{},
 		Path: "mkdir",
 		Args: []string{"-p", destFolderPath},
@@ -335,7 +335,7 @@ func (c *containerInterop) DiskpatchFolderTask(src, dst string) (string, error) 
 	}
 
 	syncCommand := RunCommand{
-		User: "root",
+		User: "vcap",
 		Env:  []string{},
 		Path: "rsync",
 		Args: []string{"-a", fmt.Sprintf("%s/", srcFolderPath), destFolderPath},
@@ -434,7 +434,7 @@ func (c *containerInterop) scheduleCommand(taskFolder string, cmd *RunCommand, p
 }
 
 func (c *containerInterop) getTaskOutputScript(cmd *RunCommand) string {
-	taskOutputPath := filepath.Join(c.getSwapOutFolder(), c.getTaskOutputFolder(), cmd.ID+".out")
+	taskOutputPath := filepath.Join(c.getSwapRoot(), c.getSwapOutFolder(), c.getTaskOutputFolder(), cmd.ID+".out")
 	return fmt.Sprintf("echo $? > %s", taskOutputPath)
 }
 
