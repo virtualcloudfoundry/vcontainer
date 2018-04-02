@@ -44,7 +44,7 @@ func (v *vcontainerHandler) Run(ctx context.Context, spec *vcontainermodels.Proc
 	defer containerInterop.Close()
 	v.logger.Info("vcontainer-run-spec", lager.Data{"spec": spec})
 
-	_, err = containerInterop.DispatchRunTask(interop.RunCommand{
+	_, err = containerInterop.DispatchRunCommand(interop.RunCommand{
 		Path: spec.Path,
 		Args: spec.Args,
 		Env:  spec.Env,
@@ -290,7 +290,7 @@ func (v *vcontainerHandler) StreamIn(server vcontainermodels.VContainer_StreamIn
 		}
 	}
 	if containerInterop != nil && filePath != "" {
-		err := containerInterop.DispatchExtractFileTask(filePath, path, user)
+		_, err := containerInterop.DispatchExtractFileTask(filePath, path, user)
 		if err != nil {
 			return verrors.New("dispatch extract file task failed.")
 		}

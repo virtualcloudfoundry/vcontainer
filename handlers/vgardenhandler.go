@@ -82,7 +82,6 @@ func (v *vgardenHandler) Create(ctx context.Context, spec *vcontainermodels.Cont
 
 func (v *vgardenHandler) create(cmd []string, interopInfo *interop.ContainerInteropInfo, spec *vcontainermodels.ContainerSpec) error {
 	var containerGroup aci.ContainerGroup
-	// executorEnv := model.GetExecutorEnvInstance()
 	containerGroup.Location = config.GetVContainerEnvInstance().ACIConfig.Location
 	containerGroup.ContainerGroupProperties.OsType = aci.Linux
 
@@ -99,6 +98,7 @@ func (v *vgardenHandler) create(cmd []string, interopInfo *interop.ContainerInte
 			Ports: make([]aci.Port, 0),
 		}
 	}
+
 	for _, p := range spec.NetIn {
 		containerGroup.IPAddress.Ports =
 			append(containerGroup.IPAddress.Ports, aci.Port{

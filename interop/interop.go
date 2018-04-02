@@ -111,6 +111,38 @@ func (c *containerInterop) Prepare() (*ContainerInteropInfo, error) {
 	interopInfo.VolumeMounts = volumeMounts
 	interopInfo.Volumes = volumes
 
+	// prepare the task in/out folders
+
+	taskFolderFullPath := filepath.Join(c.mountedPath, c.getConstantTaskFolder(), fmt.Sprintf("%d", StreamIn))
+	err := os.MkdirAll(taskFolderFullPath, 0700)
+	if err != nil {
+		return nil, verrors.New(fmt.Sprintf("failed to prepare folder %s.", taskFolderFullPath))
+	}
+
+	taskFolderFullPath = filepath.Join(c.mountedPath, c.getConstantTaskFolder(), fmt.Sprintf("%d", Run))
+	err = os.MkdirAll(taskFolderFullPath, 0700)
+	if err != nil {
+		return nil, verrors.New(fmt.Sprintf("failed to prepare folder %s.", taskFolderFullPath))
+	}
+
+	taskFolderFullPath = filepath.Join(c.mountedPath, c.getOneOffTaskFolder(), fmt.Sprintf("%d", StreamIn))
+	err = os.MkdirAll(taskFolderFullPath, 0700)
+	if err != nil {
+		return nil, verrors.New(fmt.Sprintf("failed to prepare folder %s.", taskFolderFullPath))
+	}
+
+	taskFolderFullPath = filepath.Join(c.mountedPath, c.getOneOffTaskFolder(), fmt.Sprintf("%d", Run))
+	err = os.MkdirAll(taskFolderFullPath, 0700)
+	if err != nil {
+		return nil, verrors.New(fmt.Sprintf("failed to prepare folder %s.", taskFolderFullPath))
+	}
+
+	taskOutputPath := filepath.Join(c.getSwapOutFolder(), c.getTaskOutputFolder())
+	err = os.MkdirAll(taskOutputPath, 0700)
+	if err != nil {
+		return nil, verrors.New(fmt.Sprintf("failed to prepare folder %s.", taskOutputPath))
+	}
+
 	f, err := os.Create(filepath.Join(c.mountedPath, c.getEntryScript()))
 	f.WriteString(c.getEntryScriptContent())
 	if err != nil {
@@ -357,12 +389,8 @@ func (c *containerInterop) scheduleCommand(taskFolder string, cmd *RunCommand, p
 	taskId := fileId.String()
 	cmd.ID = taskId
 	taskFolderFullPath := filepath.Join(c.mountedPath, taskFolder, fmt.Sprintf("%d", prio))
-	err = os.MkdirAll(taskFolderFullPath, 0700)
-	if err != nil {
-		c.logger.Error("container-interop-new-task-mkdir-all-failed", err)
-	}
 
-	filePath := filepath.Join(c.mountedPath, taskFolder, fmt.Sprintf("%d", prio), fmt.Sprintf("%s_%d.sh", taskId, time.Now().UnixNano()))
+	filePath := filepath.Join(taskFolderFullPath, fmt.Sprintf("%s_%d.sh", taskId, time.Now().UnixNano()))
 	f, err := os.Create(filePath)
 	// TODO better error handling.
 	if err != nil {
