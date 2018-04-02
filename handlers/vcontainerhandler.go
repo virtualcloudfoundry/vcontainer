@@ -4,8 +4,12 @@ import (
 	"io"
 	"os"
 
+	"github.com/virtualcloudfoundry/goaci/aci"
+
 	"code.cloudfoundry.org/lager"
 	google_protobuf "github.com/gogo/protobuf/types"
+	"github.com/virtualcloudfoundry/vcontainer"
+	"github.com/virtualcloudfoundry/vcontainer/config"
 	"github.com/virtualcloudfoundry/vcontainer/interop"
 	"github.com/virtualcloudfoundry/vcontainercommon"
 	"github.com/virtualcloudfoundry/vcontainercommon/vcontainermodels"
@@ -104,6 +108,7 @@ func (v *vcontainerHandler) NetOut(ctx context.Context, req *vcontainermodels.Ne
 	v.logger.Info("vcontainer-net-out-container-id", lager.Data{"containerid": containerId})
 	return nil, verrors.New("not implemented")
 }
+
 func (v *vcontainerHandler) BulkNetOut(ctx context.Context, req *vcontainermodels.BulkNetOutRuleRequest) (*google_protobuf.Empty, error) {
 	containerId, err := v.getContainerId(ctx)
 	if err != nil {
@@ -121,7 +126,19 @@ func (v *vcontainerHandler) Properties(ctx context.Context, empty *google_protob
 		return nil, err
 	}
 	v.logger.Info("vcontainer-properties-container-id", lager.Data{"containerid": containerId})
-	return nil, verrors.New("not implemented")
+
+	client, err := vcontainer.NewACIClient()
+	containerGroup, err := client.GetContainerGroup(config.GetVContainerEnvInstance().ResourceGroup, containerId)
+	if err != nil {
+		v.logger.Error("vcontainer-properties-get-container-group-failed", err)
+		return nil, verrors.New("failed to get container group.")
+	}
+
+	properties := &vcontainermodels.Properties{
+		Properties: containerGroup.Tags,
+	}
+
+	return properties, nil
 }
 
 // Property returns the value of the property with the specified name.
@@ -135,7 +152,18 @@ func (v *vcontainerHandler) Property(ctx context.Context, empty *google_protobuf
 		return nil, err
 	}
 	v.logger.Info("vcontainer-property-container-id", lager.Data{"containerid": containerId})
-	return nil, verrors.New("not implemented")
+
+	client, err := vcontainer.NewACIClient()
+	containerGroup, err := client.GetContainerGroup(config.GetVContainerEnvInstance().ResourceGroup, containerId)
+	if err != nil {
+		v.logger.Error("vcontainer-property-get-container-group-failed", err)
+		return nil, verrors.New("failed to get container group.")
+	}
+
+	value := &google_protobuf.StringValue{
+		Value: containerGroup.Tags[empty.Value],
+	}
+	return value, nil
 }
 
 // Set a named property on a container to a specified value.
@@ -149,7 +177,22 @@ func (v *vcontainerHandler) SetProperty(ctx context.Context, kv *vcontainermodel
 		return nil, err
 	}
 	v.logger.Info("vcontainer-set-property-container-id", lager.Data{"containerid": containerId})
-	return nil, verrors.New("not implemented")
+
+	client, err := vcontainer.NewACIClient()
+	containerGroup, err := client.GetContainerGroup(config.GetVContainerEnvInstance().ResourceGroup, containerId)
+	if err != nil {
+		v.logger.Error("vcontainer-property-get-container-group-failed", err)
+		return nil, verrors.New("failed to get container group.")
+	}
+
+	containerGroup.Tags[kv.Key] = kv.Value
+	containerGroupToUpdate := aci.ContainerGroup{}
+	containerGroupToUpdate.Tags = containerGroup.Tags
+	_, err = client.UpdateContainerGroup(config.GetVContainerEnvInstance().ResourceGroup, containerId, containerGroupToUpdate)
+	if err != nil {
+		return nil, verrors.New("failed to update container group.")
+	}
+	return nil, nil
 }
 
 // Remove a property with the specified name from a container.
@@ -163,7 +206,22 @@ func (v *vcontainerHandler) RemoveProperty(ctx context.Context, name *google_pro
 		return nil, err
 	}
 	v.logger.Info("vcontainer-remove-property-container-id", lager.Data{"containerid": containerId})
-	return nil, verrors.New("not implemented")
+
+	client, err := vcontainer.NewACIClient()
+	containerGroup, err := client.GetContainerGroup(config.GetVContainerEnvInstance().ResourceGroup, containerId)
+	if err != nil {
+		v.logger.Error("vcontainer-property-get-container-group-failed", err)
+		return nil, verrors.New("failed to get container group.")
+	}
+
+	delete(containerGroup.Tags, name.Value)
+	containerGroupToUpdate := aci.ContainerGroup{}
+	containerGroupToUpdate.Tags = containerGroup.Tags
+	_, err = client.UpdateContainerGroup(config.GetVContainerEnvInstance().ResourceGroup, containerId, containerGroupToUpdate)
+	if err != nil {
+		return nil, verrors.New("failed to remove property.")
+	}
+	return nil, nil
 }
 
 // TODO give out a checksum mechanism for the full content.
@@ -261,7 +319,33 @@ func (v *vcontainerHandler) Info(ctx context.Context, empty *google_protobuf.Emp
 		return nil, err
 	}
 	v.logger.Info("vcontainer-info-container-id", lager.Data{"containerid": containerId})
-	return nil, verrors.New("not implemented")
+
+	client, err := vcontainer.NewACIClient()
+	containerGroup, err := client.GetContainerGroup(config.GetVContainerEnvInstance().ResourceGroup, containerId)
+	if err != nil {
+		v.logger.Error("vcontainer-property-get-container-group-failed", err)
+		return nil, verrors.New("failed to get container group.")
+	}
+
+	containerInfo := &vcontainermodels.ContainerInfo{}
+	if containerGroup.IPAddress != nil {
+		containerInfo.HostIP = containerGroup.IPAddress.IP
+		containerInfo.ContainerIP = containerGroup.IPAddress.IP
+		for _, port := range containerGroup.IPAddress.Ports {
+			containerInfo.MappedPorts = append(containerInfo.MappedPorts, vcontainermodels.PortMapping{
+				HostPort:      uint32(port.Port),
+				ContainerPort: uint32(port.Port),
+			})
+		}
+	}
+	// TODO check whether the State can be mapped.
+	containerInfo.State = containerGroup.InstanceView.State
+
+	containerInfo.Properties = &vcontainermodels.Properties{
+		Properties: containerGroup.Tags,
+	}
+
+	return containerInfo, nil
 }
 
 func (v *vcontainerHandler) getContainerId(ctx context.Context) (string, error) {
