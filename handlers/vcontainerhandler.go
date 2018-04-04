@@ -28,7 +28,7 @@ func NewVContainerHandler(logger lager.Logger) *vcontainerHandler {
 	}
 }
 
-func (v *vcontainerHandler) Run(ctx context.Context, spec *vcontainermodels.ProcessSpec) (*google_protobuf.Empty, error) {
+func (v *vcontainerHandler) Run(ctx context.Context, spec *vcontainermodels.ProcessSpec) (*vcontainermodels.RunResponse, error) {
 	v.logger.Info("vcontainer-run")
 	containerId, err := v.getContainerId(ctx)
 	if err != nil {
@@ -44,7 +44,7 @@ func (v *vcontainerHandler) Run(ctx context.Context, spec *vcontainermodels.Proc
 	defer containerInterop.Close()
 	v.logger.Info("vcontainer-run-spec", lager.Data{"spec": spec})
 
-	_, err = containerInterop.DispatchRunCommand(interop.RunCommand{
+	commandID, err := containerInterop.DispatchRunCommand(interop.RunCommand{
 		Path: spec.Path,
 		Args: spec.Args,
 		Env:  spec.Env,
@@ -56,7 +56,9 @@ func (v *vcontainerHandler) Run(ctx context.Context, spec *vcontainermodels.Proc
 		return nil, verrors.New("failed to dispatch run task.")
 	}
 
-	return nil, nil
+	return &vcontainermodels.RunResponse{
+		ID: commandID,
+	}, nil
 }
 
 func (v *vcontainerHandler) Stop(ctx context.Context, stop *vcontainermodels.StopMessage) (*google_protobuf.Empty, error) {
