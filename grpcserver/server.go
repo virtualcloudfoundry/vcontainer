@@ -17,6 +17,7 @@ type vcontainerServerRunner struct {
 	listenAddress string
 	vgarden       vcontainermodels.VGardenServer
 	vcontainer    vcontainermodels.VContainerServer
+	vprocess      vcontainermodels.VProcessServer
 	logger        lager.Logger
 	tlsConfig     *tls.Config
 }
@@ -26,10 +27,13 @@ func NewVContainerServer(logger lager.Logger, listenAddress string, tlsConfig *t
 
 	vcontainerHandler := handlers.NewVContainerHandler(logger)
 
+	vprocessHandler := handlers.NewVProcessHandler(logger)
+
 	return vcontainerServerRunner{
 		listenAddress: listenAddress,
 		vgarden:       vgardenHandler,
 		vcontainer:    vcontainerHandler,
+		vprocess:      vprocessHandler,
 		logger:        logger,
 		tlsConfig:     tlsConfig,
 	}
@@ -50,7 +54,7 @@ func (s vcontainerServerRunner) Run(signals <-chan os.Signal, ready chan<- struc
 	server := grpc.NewServer(grpc.Creds(credentials.NewTLS(s.tlsConfig)))
 	vcontainermodels.RegisterVGardenServer(server, s.vgarden)
 	vcontainermodels.RegisterVContainerServer(server, s.vcontainer)
-
+	vcontainermodels.RegisterVProcessServer(server, s.vprocess)
 	errCh := make(chan error)
 	go func() {
 		errCh <- server.Serve(lis)

@@ -201,7 +201,7 @@ func (c *containerInterop) getConstantTaskFolder() string {
 func (c *containerInterop) getEntryScriptContent() string {
 	entryScript := fmt.Sprintf(`#!/bin/bash
 	constant_task_executor() {
-		FILES=%s/%s/%d/*
+		FILES=%s/%s/%d/*.sh
 		for f in $FILES
 		do
 			echo "Executing constant task file: $f ...\n"
@@ -209,7 +209,7 @@ func (c *containerInterop) getEntryScriptContent() string {
 			bash -c $f
 		done
 
-		FILES=%s/%s/%d/*
+		FILES=%s/%s/%d/*.sh
 		for f in $FILES
 		do
 			echo "Executing constant task file: $f ...\n"
@@ -433,7 +433,7 @@ func (c *containerInterop) scheduleCommand(taskFolder string, cmd *RunCommand, p
 }
 
 func (c *containerInterop) getTaskOutputScript(cmd *RunCommand) string {
-	taskOutputPath := filepath.Join(c.getSwapRoot(), c.getSwapOutFolder(), c.getTaskOutputFolder(), cmd.ID+".out")
+	taskOutputPath := filepath.Join(c.getSwapRoot(), c.getSwapOutFolder(), c.getTaskOutputFolder(), cmd.ID+".exit")
 	return fmt.Sprintf("echo $? > %s", taskOutputPath)
 }
 

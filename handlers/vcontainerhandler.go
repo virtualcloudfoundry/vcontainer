@@ -243,9 +243,9 @@ func (v *vcontainerHandler) StreamIn(server vcontainermodels.VContainer_StreamIn
 		streamInSpec, err := server.Recv()
 		if err != nil {
 			if err != io.EOF {
+				v.logger.Error("vcontainer-stream-in-recv-failed", err)
 				return verrors.New("recv failed.")
 			} else {
-				v.logger.Error("vcontainer-stream-in-recv-failed", err)
 				break
 			}
 		}
@@ -353,7 +353,7 @@ func (v *vcontainerHandler) getContainerId(ctx context.Context) (string, error) 
 	if !ok {
 		return "", verrors.New("context not correct.")
 	}
-	containerId := md[vcontainercommon.ContainerIdKey]
+	containerId := md[vcontainercommon.ContainerIDKey]
 	if containerId == nil || len(containerId) == 0 {
 		return "", verrors.New("no container id in context.")
 	}

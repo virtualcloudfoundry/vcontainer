@@ -8,7 +8,6 @@ import (
 
 	"code.cloudfoundry.org/lager"
 	google_protobuf "github.com/gogo/protobuf/types"
-	google_protobuf3 "github.com/gogo/protobuf/types"
 	"github.com/virtualcloudfoundry/goaci/aci"
 	"github.com/virtualcloudfoundry/vcontainer"
 	"github.com/virtualcloudfoundry/vcontainer/config"
@@ -28,18 +27,18 @@ func NewVGardenHandler(logger lager.Logger) *vgardenHandler {
 	}
 }
 
-func (v *vgardenHandler) Ping(context.Context, *google_protobuf3.Empty) (*google_protobuf3.Empty, error) {
+func (v *vgardenHandler) Ping(context.Context, *google_protobuf.Empty) (*google_protobuf.Empty, error) {
 	v.logger.Info("vgarden-ping")
 	// NOOP for vgarden.
 	return nil, nil // verrors.New("not implemented")
 }
 
-func (v *vgardenHandler) Capacity(context.Context, *google_protobuf3.Empty) (*vcontainermodels.Capacity, error) {
+func (v *vgardenHandler) Capacity(context.Context, *google_protobuf.Empty) (*vcontainermodels.Capacity, error) {
 	v.logger.Info("vgarden-capacity")
 	return nil, verrors.New("not implemented")
 }
 
-func (v *vgardenHandler) Create(ctx context.Context, spec *vcontainermodels.ContainerSpec) (*google_protobuf3.Empty, error) {
+func (v *vgardenHandler) Create(ctx context.Context, spec *vcontainermodels.ContainerSpec) (*google_protobuf.Empty, error) {
 	v.logger.Info("vgarden-create")
 	v.logger.Info("vgarden-create-spec", lager.Data{"spec": spec})
 	if len(spec.Handle) != len("3fa79176-be9a-4496-bda2-cdaa06c32480") && // skip for the staging container for now.
@@ -141,7 +140,7 @@ func (v *vgardenHandler) create(cmd []string, interopInfo *interop.ContainerInte
 	return nil
 }
 
-func (v *vgardenHandler) Destroy(ctx context.Context, handle *google_protobuf.StringValue) (*google_protobuf3.Empty, error) {
+func (v *vgardenHandler) Destroy(ctx context.Context, handle *google_protobuf.StringValue) (*google_protobuf.Empty, error) {
 	v.logger.Info("vgarden-destroy")
 	client, err := vcontainer.NewACIClient()
 
@@ -192,7 +191,7 @@ func (v *vgardenHandler) BulkMetrics(context.Context, *vcontainermodels.BulkMetr
 	return nil, verrors.New("not implemented")
 }
 
-func (v *vgardenHandler) Lookup(ctx context.Context, handle *google_protobuf.StringValue) (*google_protobuf3.Empty, error) {
+func (v *vgardenHandler) Lookup(ctx context.Context, handle *google_protobuf.StringValue) (*google_protobuf.Empty, error) {
 	v.logger.Info("vgarden-lookup")
 	// find the container in the resource group, if found, return the empty, or return the error.
 	client, err := vcontainer.NewACIClient()
