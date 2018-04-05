@@ -27,10 +27,13 @@ func (v *vprocessHandler) Signal(context.Context, *vcontainermodels.SignalReques
 	return nil, verrors.New("Not implemented")
 }
 
-func (v *vprocessHandler) Wait(server vcontainermodels.VProcess_WaitServer) error {
+func (v *vprocessHandler) Wait(empty *google_protobuf.Empty, server vcontainermodels.VProcess_WaitServer) error {
 	// see whether there's one file.
 	for {
-		_, err := server.Recv()
+		err := server.Send(&vcontainermodels.WaitResponse{
+			Exited:   false,
+			ExitCode: -1,
+		})
 		if err != nil {
 			if err != io.EOF {
 				v.logger.Error("vprocess-wait-recv-failed", err)
