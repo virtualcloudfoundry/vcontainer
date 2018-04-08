@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"io"
+
 	"github.com/virtualcloudfoundry/vcontainer/interop"
 	"github.com/virtualcloudfoundry/vcontainercommon"
 	"google.golang.org/grpc/metadata"
@@ -27,12 +29,10 @@ func (v *vprocessHandler) Signal(context.Context, *vcontainermodels.SignalReques
 }
 
 func (v *vprocessHandler) Wait(empty *google_protobuf.Empty, server vcontainermodels.VProcess_WaitServer) error {
-	// see whether there's one file.
-	// mount the container
 
 	var containerInterop interop.ContainerInterop
-
-	containerId, err := v.getContainerId(server.Context())
+	ctx := server.Context()
+	containerId, err := v.getContainerId(ctx)
 	if err != nil {
 		return err
 	}
@@ -43,25 +43,23 @@ func (v *vprocessHandler) Wait(empty *google_protobuf.Empty, server vcontainermo
 		return verrors.New("failed to open container interop.")
 	}
 	defer containerInterop.Close()
-
+	processId, err := v.getProcessId(ctx)
 	for {
-		err := server.Send(&vcontainermodels.WaitResponse{
-			Exited:   false,
-			ExitCode: -1,
-		})
+		waitResponse, err := containerInterop.TaskExited(processId)
+		err = server.Send(&waitResponse)
 		if err != nil {
-			v.logger.Error("vprocess-wait-recv-failed", err)
-			break
-			// if err != io.EOF {
-			// 	v.logger.Error("vprocess-wait-recv-failed", err)
-			// 	return verrors.New("recv failed.")
-			// } else {
-			// 	break
-			// }
+			if err != io.EOF {
+				v.logger.Error("vprocess-wait-send-failed", err)
+				return verrors.New("send failed.")
+			} else {
+				break
+			}
 		}
-
+		if waitResponse.Exited {
+			break
+		}
 	}
-	return verrors.New("Not implemented")
+	return nil
 }
 
 func (v *vprocessHandler) getContainerId(ctx context.Context) (string, error) {

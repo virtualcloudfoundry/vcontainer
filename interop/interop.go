@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/virtualcloudfoundry/vcontainer/helpers/fsync"
 	"github.com/virtualcloudfoundry/vcontainer/helpers/mount"
 	"github.com/virtualcloudfoundry/vcontainer/vstore"
+	"github.com/virtualcloudfoundry/vcontainercommon/vcontainermodels"
 	"github.com/virtualcloudfoundry/vcontainercommon/verrors"
 )
 
@@ -71,6 +73,10 @@ type ContainerInterop interface {
 	DispatchExtractFileTask(fileToExtract, dest, user string) (string, error)
 	// wait for the task with the taskId exit.
 	WaitForTaskExit(taskId string) error
+	// judge whether the task exited.
+	TaskExited(taskId string) (vcontainermodels.WaitResponse, error)
+	// clear the task related files.
+	CleanTask(taskId string) error
 }
 
 type containerInterop struct {
@@ -432,8 +438,13 @@ func (c *containerInterop) scheduleCommand(taskFolder string, cmd *RunCommand, p
 	return nil
 }
 
+func (c *containerInterop) getTaskExitFilePath(taskId string) string {
+	taskOutputPath := filepath.Join(c.getSwapRoot(), c.getSwapOutFolder(), c.getTaskOutputFolder(), taskId+".exit")
+	return taskOutputPath
+}
+
 func (c *containerInterop) getTaskOutputScript(cmd *RunCommand) string {
-	taskOutputPath := filepath.Join(c.getSwapRoot(), c.getSwapOutFolder(), c.getTaskOutputFolder(), cmd.ID+".exit")
+	taskOutputPath := c.getTaskExitFilePath(cmd.ID)
 	return fmt.Sprintf("echo $? > %s", taskOutputPath)
 }
 
@@ -477,4 +488,34 @@ func (c *containerInterop) mountContainerRoot(handle string) (string, error) {
 func (c *containerInterop) getContainerSwapRootShareFolder(handle string) string {
 	shareName := fmt.Sprintf("root-%s", handle)
 	return shareName
+}
+
+// judge whether the task exited.
+func (c *containerInterop) TaskExited(taskId string) (vcontainermodels.WaitResponse, error) {
+	exitFilePath := c.getTaskExitFilePath(taskId)
+	if _, err := os.Stat(exitFilePath); os.IsNotExist(err) {
+		return vcontainermodels.WaitResponse{
+			Exited:   false,
+			ExitCode: -1,
+		}, nil
+	} else {
+		// TODO racing issue, should lock the file.
+		content, err := ioutil.ReadFile(exitFilePath)
+		if err != nil {
+			return vcontainermodels.WaitResponse{}, err
+		}
+		exitCode, err := strconv.ParseInt(string(content), 10, 32)
+		if err != nil {
+			return vcontainermodels.WaitResponse{}, err
+		}
+		return vcontainermodels.WaitResponse{
+			Exited:   true,
+			ExitCode: int32(exitCode),
+		}, nil
+	}
+}
+
+// clear the task related files.
+func (c *containerInterop) CleanTask(taskId string) error {
+	return nil
 }
