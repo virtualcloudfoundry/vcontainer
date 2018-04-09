@@ -304,14 +304,51 @@ func (v *vcontainerHandler) StreamIn(server vcontainermodels.VContainer_StreamIn
 	return nil
 }
 
-func (v *vcontainerHandler) StreamOut(in *vcontainermodels.StreamOutSpec, server vcontainermodels.VContainer_StreamOutServer) error {
-	v.logger.Info("vcontainer-stream-out")
+func (v *vcontainerHandler) StreamOut(outSpec *vcontainermodels.StreamOutSpec, server vcontainermodels.VContainer_StreamOutServer) error {
+	v.logger.Info("vcontainer-stream-out", lager.Data{"stream-out-spec": outSpec})
 	containerId, err := v.getContainerId(server.Context())
 	if err != nil {
 		return err
 	}
 	v.logger.Info("vcontainer-stream-out-container-id", lager.Data{"containerid": containerId})
-	return verrors.New("not implemented")
+	var containerInterop interop.ContainerInterop
+	containerInterop = interop.NewContainerInterop(containerId, v.logger)
+	containerInterop.Open()
+	defer containerInterop.Close()
+	taskId, fileId, _ := containerInterop.DispatchStreamOutTask(outSpec)
+	err = containerInterop.WaitForTaskExit(taskId)
+	if err != nil {
+		v.logger.Error("vcontainer-stream-out-wait-for-task-exit-failed", err)
+		return verrors.New("vcontainer-stream-out-failed")
+	}
+
+	// open the file and write it back.
+	file, err := containerInterop.OpenStreamOutFile(fileId)
+	if err != nil {
+		v.logger.Error("vcontainer-stream-out-open-stream-out-file-failed", err)
+		return verrors.New("vcontainer-stream-out-failed")
+	}
+	data := make([]byte, 32*1024)
+	for {
+		n, err := file.Read(data)
+		if err != nil {
+			if err != io.EOF {
+				v.logger.Error("vcontainer-stream-out-read-failed", err)
+				return verrors.New("vcontainer-stream-out-failed")
+			} else {
+				break
+			}
+		}
+		response := vcontainermodels.StreamOutResponse{
+			Content: data[:n],
+		}
+		err = server.Send(&response)
+		if err != io.EOF {
+			v.logger.Error("vcontainer-stream-out-read-failed", err)
+			return verrors.New("vcontainer-stream-out-failed")
+		}
+	}
+	return nil
 }
 
 func (v *vcontainerHandler) Info(ctx context.Context, empty *google_protobuf.Empty) (*vcontainermodels.ContainerInfo, error) {

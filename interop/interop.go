@@ -13,7 +13,6 @@ import (
 	"code.cloudfoundry.org/lager"
 	uuid "github.com/satori/go.uuid"
 	"github.com/virtualcloudfoundry/goaci/aci"
-	"github.com/virtualcloudfoundry/vcontainer/common"
 	"github.com/virtualcloudfoundry/vcontainer/config"
 	"github.com/virtualcloudfoundry/vcontainer/helpers/fsync"
 	"github.com/virtualcloudfoundry/vcontainer/helpers/mount"
@@ -66,7 +65,9 @@ type ContainerInterop interface {
 	// dispatch one command to the container.
 	DispatchRunCommand(cmd RunCommand) (string, error)
 	// copy the src folder to the prepared swap root. and write one task into it.
-	DiskpatchFolderTask(src, dest string) (string, error)
+	DispatchStreamOutTask(outSpec *vcontainermodels.StreamOutSpec) (string, string, error)
+	OpenStreamOutFile(fileId string) (*os.File, error)
+	DispatchFolderTask(src, dest string) (string, error)
 	// prepare an file opened for writing, so the extract task can extract it to the dest folder in the container.
 	PrepareExtractFile(dest string) (string, *os.File, error)
 	// dispatch an extract file task.
@@ -108,7 +109,7 @@ func (c *containerInterop) Prepare() (*ContainerInteropInfo, error) {
 
 	volumeMount := aci.VolumeMount{
 		Name:      shareName,
-		MountPath: common.GetSwapRoot(),
+		MountPath: c.getSwapRoot(),
 		ReadOnly:  false,
 	}
 	volumeMounts = append(volumeMounts, volumeMount)
@@ -116,7 +117,6 @@ func (c *containerInterop) Prepare() (*ContainerInteropInfo, error) {
 	interopInfo.Volumes = volumes
 
 	// prepare the task in/out folders
-
 	taskFolderFullPath := filepath.Join(c.mountedPath, c.getConstantTaskFolder(), fmt.Sprintf("%d", StreamIn))
 	err := os.MkdirAll(taskFolderFullPath, 0700)
 	if err != nil {
@@ -182,6 +182,10 @@ func (c *containerInterop) getSwapOutFolder() string {
 
 func (c *containerInterop) getTaskOutputFolder() string {
 	return "tasks"
+}
+
+func (c *containerInterop) getStreamOutFolder() string {
+	return "streamout"
 }
 
 func (c *containerInterop) getSwapRoot() string {
@@ -309,7 +313,58 @@ func (c *containerInterop) DispatchRunCommand(cmd RunCommand) (string, error) {
 	return cmd.ID, nil
 }
 
-func (c *containerInterop) DiskpatchFolderTask(src, dst string) (string, error) {
+func (c *containerInterop) DispatchStreamOutTask(outSpec *vcontainermodels.StreamOutSpec) (string, string, error) {
+	id, err := uuid.NewV4()
+	if err != nil {
+		c.logger.Fatal("Couldn't generate uuid", err)
+		return "", "", err
+	}
+
+	destFolderPath := fmt.Sprintf("%s/%s/%s", c.getSwapRoot(), c.getSwapOutFolder(), c.getStreamOutFolder())
+	mkdirCommand := RunCommand{
+		User: outSpec.User,
+		Env:  []string{},
+		Path: "mkdir",
+		Args: []string{"-p", destFolderPath},
+	}
+
+	if err = c.scheduleCommand(c.getConstantTaskFolder(), &mkdirCommand, StreamIn); err != nil {
+		c.logger.Error("container-interop-new-task-failed", err)
+		return "", "", verrors.New("failed to create task.")
+	}
+
+	err = c.WaitForTaskExit(mkdirCommand.ID)
+	if err != nil {
+		c.logger.Error("container-interop-dispatch-folder-task-prepare-failed", err)
+		return "", "", verrors.New("failed to dispatch folder task.")
+	}
+	destFilePath := fmt.Sprintf("%s/%s", destFolderPath, id.String())
+	syncCommand := RunCommand{
+		User: outSpec.User,
+		Env:  []string{},
+		Path: "rsync",
+		Args: []string{"-a", outSpec.Path, destFilePath},
+	}
+
+	if err = c.scheduleCommand(c.getOneOffTaskFolder(), &syncCommand, Run); err != nil {
+		c.logger.Error("container-interop-new-task-failed", err)
+		return "", "", verrors.New("failed to create task.")
+	}
+	return syncCommand.ID, id.String(), nil
+}
+
+func (c *containerInterop) OpenStreamOutFile(fileId string) (*os.File, error) {
+	filePath := fmt.Sprintf("%s/%s/%s", c.mountedPath, c.getStreamOutFolder(), fileId)
+
+	file, err := os.Open(filePath)
+	if err != nil {
+		c.logger.Error("container-interop-open-stream-out-file-failed", err)
+		return nil, verrors.New("open-file-failed")
+	}
+	return file, nil
+}
+
+func (c *containerInterop) DispatchFolderTask(src, dst string) (string, error) {
 	fsync := fsync.NewFSync(c.logger)
 	relativePath := fmt.Sprintf("%s/%s", c.getSwapInFolder(), dst)
 	targetFolder := filepath.Join(c.mountedPath, relativePath)
@@ -318,7 +373,7 @@ func (c *containerInterop) DiskpatchFolderTask(src, dst string) (string, error) 
 		c.logger.Error("container-interop-copy-folder-failed", err, lager.Data{"src": src, "dest": dst})
 		return "", verrors.New("failed to copy folder.")
 	}
-	srcFolderPath := filepath.Join(common.GetSwapRoot(), relativePath)
+	srcFolderPath := filepath.Join(c.getSwapRoot(), relativePath)
 	destFolderPath := dst
 
 	mkdirCommand := RunCommand{

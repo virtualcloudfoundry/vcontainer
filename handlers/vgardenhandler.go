@@ -65,7 +65,7 @@ func (v *vgardenHandler) Create(ctx context.Context, spec *vcontainermodels.Cont
 
 		for _, bindMount := range spec.BindMounts {
 			// put the folder
-			if _, err = containerInterop.DiskpatchFolderTask(bindMount.SrcPath, bindMount.DstPath); err != nil {
+			if _, err = containerInterop.DispatchFolderTask(bindMount.SrcPath, bindMount.DstPath); err != nil {
 				v.logger.Error("vgarden-create-dispatch-folder-task-failed", err)
 				return nil, errors.New("open container interop failed.")
 			}

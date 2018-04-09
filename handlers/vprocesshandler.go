@@ -29,7 +29,6 @@ func (v *vprocessHandler) Signal(context.Context, *vcontainermodels.SignalReques
 }
 
 func (v *vprocessHandler) Wait(empty *google_protobuf.Empty, server vcontainermodels.VProcess_WaitServer) error {
-
 	var containerInterop interop.ContainerInterop
 	ctx := server.Context()
 	containerId, err := v.getContainerId(ctx)
