@@ -466,8 +466,6 @@ func (c *containerInterop) scheduleCommand(taskFolder string, cmd *RunCommand, p
 	}
 	var buffer bytes.Buffer
 	buffer.WriteString("#!/bin/bash\n")
-	// convert the run commands to the task.
-
 	args := make([]string, len(cmd.Args))
 	for i, _ := range cmd.Args {
 		if cmd.Args[i] == "" {
@@ -476,13 +474,19 @@ func (c *containerInterop) scheduleCommand(taskFolder string, cmd *RunCommand, p
 			args[i] = cmd.Args[i]
 		}
 	}
+	pidFilePath := filepath.Join(c.getSwapRoot(), c.getSwapOutFolder(), c.getTaskOutputFolder(), taskId+".pid")
+	// my-app & export APP_PID=$!
+	// wait $APP_PID
 
 	buffer.WriteString(fmt.Sprintf(`su - %s -c 'export HOME=/home/%s/app
 			export PORT=8080
 			export APP_ROOT=/home/%s/app
-			%s %s'
-			`, cmd.User, cmd.User, cmd.User, cmd.Path, strings.Join(args, " ")))
-
+			%s %s & export CMD_PID=$!
+			echo $CMD_PID > %s
+			wait $CMD_PID'
+			`, cmd.User, cmd.User, cmd.User, cmd.Path, strings.Join(args, " "), pidFilePath))
+	// output the pid
+	// and wait for the
 	buffer.WriteString(c.getTaskOutputScript(cmd))
 
 	_, err = f.WriteString(buffer.String())

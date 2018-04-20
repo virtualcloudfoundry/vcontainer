@@ -51,13 +51,16 @@ func (v *vcontainerHandler) Run(ctx context.Context, spec *vcontainermodels.Proc
 		User: spec.User,
 	})
 
+	// we should use the
 	if err != nil {
 		v.logger.Error("vcontainer-run-dispatch-run-task-failed", err)
 		return nil, verrors.New("failed to dispatch run task.")
 	}
 
+	// wait for the process id file??
 	return &vcontainermodels.RunResponse{
-		ID: commandID,
+		ID:        commandID,
+		ProcessId: "",
 	}, nil
 }
 
@@ -68,6 +71,7 @@ func (v *vcontainerHandler) Stop(ctx context.Context, stop *vcontainermodels.Sto
 		return nil, err
 	}
 	v.logger.Info("vcontainer-stop-container-id", lager.Data{"containerid": containerId})
+	// TODO
 	return nil, verrors.New("not implemented")
 }
 

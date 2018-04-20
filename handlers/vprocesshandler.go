@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"io"
+	"strconv"
 
 	"github.com/virtualcloudfoundry/vcontainer/interop"
 	"github.com/virtualcloudfoundry/vcontainercommon"
@@ -24,7 +25,38 @@ func NewVProcessHandler(logger lager.Logger) *vprocessHandler {
 	}
 }
 
-func (v *vprocessHandler) Signal(context.Context, *vcontainermodels.SignalRequest) (*google_protobuf.Empty, error) {
+func (v *vprocessHandler) Signal(ctx context.Context, req *vcontainermodels.SignalRequest) (*google_protobuf.Empty, error) {
+	// dispatch one task and wait for it to exit.
+	var containerInterop interop.ContainerInterop
+
+	containerId, err := v.getContainerId(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	containerInterop = interop.NewContainerInterop(containerId, v.logger)
+	if err = containerInterop.Open(); err != nil {
+		v.logger.Error("vcontainer-stream-in-container-interop-failed-to-open", err)
+		return nil, verrors.New("failed to open container interop.")
+	}
+	defer containerInterop.Close()
+	processId, err := v.getProcessId(ctx)
+	if err != nil {
+		v.logger.Error("vprocess-signal-get-process-id-failed", err)
+		return nil, verrors.New("failed to get process id.")
+	}
+
+	killCmd := interop.RunCommand{
+		User: "",
+		Path: "kill",
+		Args: []string{"-s", strconv.Itoa(int(req.Signal)), processId},
+	}
+
+	cmdID, err := containerInterop.DispatchRunCommand(killCmd)
+	if err != nil {
+		v.logger.Error("vcontainer-dispatch-run-command-failed", err)
+	}
+	v.logger.Info("vcontainer-dispatch-run-command-cmd-id", lager.Data{"cmd_id": cmdID})
 	return nil, verrors.New("Not implemented")
 }
 
