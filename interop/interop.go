@@ -514,7 +514,8 @@ func (c *containerInterop) mountContainerRoot(handle string) (string, error) {
 	// create share folder
 	err := vs.CreateShareFolder(shareName)
 	if err != nil {
-		c.logger.Error("container-interop-mount-container-root-create-share-folder-failed", err)
+		c.logger.Error("container-interop-mount-container-root-create-share-folder-failed", err,
+			lager.Data{"sharename": shareName, "handle": handle})
 	}
 	mountedRootFolder, err := ioutil.TempDir("/tmp", "folder_to_azure_")
 	storageID := config.GetVContainerEnvInstance().ACIConfig.StorageId
