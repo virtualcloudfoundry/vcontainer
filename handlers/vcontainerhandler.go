@@ -32,6 +32,7 @@ func (v *vcontainerHandler) Run(ctx context.Context, spec *vcontainermodels.Proc
 	v.logger.Info("vcontainer-run")
 	containerId, err := v.getContainerId(ctx)
 	if err != nil {
+		v.logger.Error("vcontainer-run-get-container-id-failed", err)
 		return nil, err
 	}
 	v.logger.Info("vcontainer-run-container-id", lager.Data{"containerid": containerId})
@@ -68,6 +69,7 @@ func (v *vcontainerHandler) Stop(ctx context.Context, stop *vcontainermodels.Sto
 	v.logger.Info("vcontainer-stop")
 	containerId, err := v.getContainerId(ctx)
 	if err != nil {
+		v.logger.Error("vcontainer-stop-get-container-id-failed", err)
 		return nil, err
 	}
 	v.logger.Info("vcontainer-stop-container-id", lager.Data{"containerid": containerId})
@@ -79,6 +81,7 @@ func (v *vcontainerHandler) Metrics(ctx context.Context, empty *google_protobuf.
 	v.logger.Info("vcontainer-metrics")
 	containerId, err := v.getContainerId(ctx)
 	if err != nil {
+		v.logger.Error("vcontainer-metrics-get-container-id-failed", err)
 		return nil, err
 	}
 	v.logger.Info("vcontainer-metrics-container-id", lager.Data{"containerid": containerId})
@@ -90,6 +93,7 @@ func (v *vcontainerHandler) SetGraceTime(ctx context.Context, duration *google_p
 	v.logger.Info("vcontainer-set-grace-time")
 	containerId, err := v.getContainerId(ctx)
 	if err != nil {
+		v.logger.Error("vcontainer-set-grace-time-get-container-id-failed", err)
 		return nil, err
 	}
 	v.logger.Info("vcontainer-set-grace-time-container-id", lager.Data{"containerid": containerId})
@@ -100,6 +104,7 @@ func (v *vcontainerHandler) NetIn(ctx context.Context, req *vcontainermodels.Net
 	v.logger.Info("vcontainer-net-in")
 	containerId, err := v.getContainerId(ctx)
 	if err != nil {
+		v.logger.Error("vcontainer-net-in-get-container-id-failed", err)
 		return nil, err
 	}
 	v.logger.Info("vcontainer-net-in-container-id", lager.Data{"containerid": containerId})
@@ -109,6 +114,7 @@ func (v *vcontainerHandler) NetIn(ctx context.Context, req *vcontainermodels.Net
 func (v *vcontainerHandler) NetOut(ctx context.Context, req *vcontainermodels.NetOutRuleRequest) (*google_protobuf.Empty, error) {
 	containerId, err := v.getContainerId(ctx)
 	if err != nil {
+		v.logger.Error("vcontainer-net-out-get-container-id-failed", err)
 		return nil, err
 	}
 	v.logger.Info("vcontainer-net-out-container-id", lager.Data{"containerid": containerId})
@@ -118,6 +124,7 @@ func (v *vcontainerHandler) NetOut(ctx context.Context, req *vcontainermodels.Ne
 func (v *vcontainerHandler) BulkNetOut(ctx context.Context, req *vcontainermodels.BulkNetOutRuleRequest) (*google_protobuf.Empty, error) {
 	containerId, err := v.getContainerId(ctx)
 	if err != nil {
+		v.logger.Error("vcontainer-bulk-net-out-get-container-id-failed", err)
 		return nil, err
 	}
 	v.logger.Info("vcontainer-net-in-container-id", lager.Data{"containerid": containerId})
@@ -129,6 +136,7 @@ func (v *vcontainerHandler) Properties(ctx context.Context, empty *google_protob
 	v.logger.Info("vcontainer-properties")
 	containerId, err := v.getContainerId(ctx)
 	if err != nil {
+		v.logger.Error("vcontainer-properties-get-container-id-failed", err)
 		return nil, err
 	}
 	v.logger.Info("vcontainer-properties-container-id", lager.Data{"containerid": containerId})
@@ -155,6 +163,7 @@ func (v *vcontainerHandler) Property(ctx context.Context, empty *google_protobuf
 	v.logger.Info("vcontainer-property")
 	containerId, err := v.getContainerId(ctx)
 	if err != nil {
+		v.logger.Error("vcontainer-property-get-container-id-failed", err)
 		return nil, err
 	}
 	v.logger.Info("vcontainer-property-container-id", lager.Data{"containerid": containerId})
@@ -180,6 +189,7 @@ func (v *vcontainerHandler) SetProperty(ctx context.Context, kv *vcontainermodel
 	v.logger.Info("vcontainer-set-property")
 	containerId, err := v.getContainerId(ctx)
 	if err != nil {
+		v.logger.Error("vcontainer-set-property-get-container-id-failed", err)
 		return nil, err
 	}
 	v.logger.Info("vcontainer-set-property-container-id", lager.Data{"containerid": containerId})
@@ -209,6 +219,7 @@ func (v *vcontainerHandler) RemoveProperty(ctx context.Context, name *google_pro
 	v.logger.Info("vcontainer-remove-property")
 	containerId, err := v.getContainerId(ctx)
 	if err != nil {
+		v.logger.Error("vcontainer-remote-property-get-container-id-failed", err)
 		return nil, err
 	}
 	v.logger.Info("vcontainer-remove-property-container-id", lager.Data{"containerid": containerId})
@@ -236,6 +247,7 @@ func (v *vcontainerHandler) StreamIn(server vcontainermodels.VContainer_StreamIn
 
 	containerId, err := v.getContainerId(server.Context())
 	if err != nil {
+		v.logger.Error("vcontainer-stream-in-get-container-id-failed", err)
 		return err
 	}
 	v.logger.Info("vcontainer-stream-in-container-id", lager.Data{"containerid": containerId})
@@ -312,6 +324,7 @@ func (v *vcontainerHandler) StreamOut(outSpec *vcontainermodels.StreamOutSpec, s
 	v.logger.Info("vcontainer-stream-out", lager.Data{"stream-out-spec": outSpec})
 	containerId, err := v.getContainerId(server.Context())
 	if err != nil {
+		v.logger.Error("vcontainer-stream-out-get-container-id-failed", err)
 		return err
 	}
 	v.logger.Info("vcontainer-stream-out-container-id", lager.Data{"containerid": containerId})
@@ -359,6 +372,7 @@ func (v *vcontainerHandler) Info(ctx context.Context, empty *google_protobuf.Emp
 	v.logger.Info("vcontainer-info")
 	containerId, err := v.getContainerId(ctx)
 	if err != nil {
+		v.logger.Error("vcontainer-info-get-container-id-failed", err)
 		return nil, err
 	}
 	v.logger.Info("vcontainer-info-container-id", lager.Data{"containerid": containerId})
