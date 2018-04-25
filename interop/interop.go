@@ -517,7 +517,7 @@ func (c *containerInterop) getTaskOutputScript(cmd *RunCommand) string {
 }
 
 func (c *containerInterop) mountContainerRoot(handle string) (string, error) {
-	c.logger.Info("container-interop-mount-container-root")
+	c.logger.Info("container-interop-mount-container-root", lager.Data{"handle": handle})
 	shareName := c.getContainerSwapRootShareFolder(handle)
 	vs := vstore.NewVStore()
 	// 1. prepare the volumes.

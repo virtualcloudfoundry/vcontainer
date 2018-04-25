@@ -3,6 +3,7 @@ package handlers
 import (
 	"io"
 	"os"
+	"time"
 
 	"github.com/virtualcloudfoundry/goaci/aci"
 
@@ -290,7 +291,7 @@ func (v *vcontainerHandler) StreamIn(server vcontainermodels.VContainer_StreamIn
 				v.logger.Error("vcontainer-stream-in-container-interop-failed-to-open", err)
 				return verrors.New("failed to open container interop.")
 			}
-			defer containerInterop.Close()
+			time.Sleep(time.Second * 40)
 			filePath, fileToExtract, err = containerInterop.PrepareExtractFile(path)
 
 			if fileToExtract != nil {
@@ -311,11 +312,14 @@ func (v *vcontainerHandler) StreamIn(server vcontainermodels.VContainer_StreamIn
 			}
 		}
 	}
-	if containerInterop != nil && filePath != "" {
-		_, err := containerInterop.DispatchExtractFileTask(filePath, path, user)
-		if err != nil {
-			return verrors.New("dispatch extract file task failed.")
+	if containerInterop != nil {
+		if filePath != "" {
+			_, err := containerInterop.DispatchExtractFileTask(filePath, path, user)
+			if err != nil {
+				return verrors.New("dispatch extract file task failed.")
+			}
 		}
+		containerInterop.Close()
 	}
 	// wait for the exit
 	server.SendAndClose(&vcontainermodels.StreamInResponse{

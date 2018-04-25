@@ -1,11 +1,17 @@
 package mount
 
-import "runtime"
+import (
+	"runtime"
 
-func NewMounter() Interface {
+	"code.cloudfoundry.org/lager"
+)
+
+func NewMounter(logger lager.Logger) Interface {
 	var mounter Interface
 	if runtime.GOOS == "linux" {
-		mounter = &MounterLinux{}
+		mounter = &MounterLinux{
+			logger: logger,
+		}
 	} else if runtime.GOOS == "windows" {
 		mounter = nil
 	}

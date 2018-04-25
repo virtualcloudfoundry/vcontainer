@@ -3,10 +3,13 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
+
+	"code.cloudfoundry.org/lager"
 )
 
 type MounterLinux struct {
 	// mounterPath string
+	logger lager.Logger
 }
 
 func (mounter *MounterLinux) Mount(source string, target string, fstype string, options []string) error {
@@ -14,6 +17,7 @@ func (mounter *MounterLinux) Mount(source string, target string, fstype string, 
 	// if fsTypesNeedMounter.Has(fstype) {
 	// 	mounter.mounterPath = mounter.mounterPath
 	// }
+	mounter.logger.Info("mounter-linux-mount", lager.Data{"source": source, "target": target})
 	return mounter.doMount(defaultMountCommand, source, target, fstype, options)
 }
 
