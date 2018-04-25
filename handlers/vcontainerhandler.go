@@ -159,7 +159,7 @@ func (v *vcontainerHandler) Properties(ctx context.Context, empty *google_protob
 //
 // Errors:
 // * When the property does not exist on the container.
-func (v *vcontainerHandler) Property(ctx context.Context, empty *google_protobuf.StringValue) (*google_protobuf.StringValue, error) {
+func (v *vcontainerHandler) Property(ctx context.Context, str *google_protobuf.StringValue) (*google_protobuf.StringValue, error) {
 	v.logger.Info("vcontainer-property")
 	containerId, err := v.getContainerId(ctx)
 	if err != nil {
@@ -171,12 +171,16 @@ func (v *vcontainerHandler) Property(ctx context.Context, empty *google_protobuf
 	client, err := vcontainer.NewACIClient()
 	containerGroup, err := client.GetContainerGroup(config.GetVContainerEnvInstance().ResourceGroup, containerId)
 	if err != nil {
-		v.logger.Error("vcontainer-property-get-container-group-failed", err)
+		strV := ""
+		if str != nil {
+			strV = str.Value
+		}
+		v.logger.Error("vcontainer-property-get-container-group-failed", err, lager.Data{"str": strV})
 		return nil, verrors.New("failed to get container group.")
 	}
 
 	value := &google_protobuf.StringValue{
-		Value: containerGroup.Tags[empty.Value],
+		Value: containerGroup.Tags[str.Value],
 	}
 	return value, nil
 }

@@ -280,9 +280,10 @@ func (c *containerInterop) WaitForTaskExit(taskId string) error {
 }
 
 func (c *containerInterop) Open() error {
+	c.logger.Info("container-interop-open")
 	mountedRootFolder, err := c.mountContainerRoot(c.handle)
 	if err != nil {
-		c.logger.Error("container-interop-open-failed", err)
+		c.logger.Error("container-interop-mount-container-root-failed", err)
 		return verrors.New("failed to mount container root.")
 	}
 	c.mountedPath = mountedRootFolder
@@ -508,13 +509,14 @@ func (c *containerInterop) getTaskOutputScript(cmd *RunCommand) string {
 }
 
 func (c *containerInterop) mountContainerRoot(handle string) (string, error) {
+	c.logger.Info("container-interop-mount-container-root")
 	shareName := c.getContainerSwapRootShareFolder(handle)
 	vs := vstore.NewVStore()
 	// 1. prepare the volumes.
 	// create share folder
 	err := vs.CreateShareFolder(shareName)
 	if err != nil {
-		c.logger.Error("container-interop-mount-container-root-create-share-folder-failed", err,
+		c.logger.Error("container-interop-mount-container-root-create-share-folder-failed-warn", err,
 			lager.Data{"sharename": shareName, "handle": handle})
 	}
 	mountedRootFolder, err := ioutil.TempDir("/tmp", "folder_to_azure_")
