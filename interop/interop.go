@@ -87,6 +87,7 @@ type containerInterop struct {
 }
 
 func (c *containerInterop) Prepare() (*ContainerInteropInfo, error) {
+	c.logger.Info("container-interop-prepare")
 	interopInfo := &ContainerInteropInfo{}
 
 	var volumeMounts []aci.VolumeMount
@@ -291,6 +292,7 @@ func (c *containerInterop) Open() error {
 }
 
 func (c *containerInterop) Close() error {
+	c.logger.Info("container-interop-close")
 	mounter := mount.NewMounter()
 	err := mounter.Umount(c.mountedPath)
 	if err != nil {
@@ -306,6 +308,7 @@ func (c *containerInterop) Close() error {
 }
 
 func (c *containerInterop) DispatchRunCommand(cmd RunCommand) (string, error) {
+	c.logger.Info("container-interop-dispatch-run-command")
 	if err := c.scheduleCommand(c.getOneOffTaskFolder(), &cmd, Run); err != nil {
 		c.logger.Error("container-interop-new-task-failed", err)
 		return "", verrors.New("failed to create task.")
@@ -315,6 +318,7 @@ func (c *containerInterop) DispatchRunCommand(cmd RunCommand) (string, error) {
 }
 
 func (c *containerInterop) DispatchStreamOutTask(outSpec *vcontainermodels.StreamOutSpec) (string, string, error) {
+	c.logger.Info("container-interop-dispatch-stream-out-task")
 	id, err := uuid.NewV4()
 	if err != nil {
 		c.logger.Fatal("Couldn't generate uuid", err)
@@ -355,6 +359,7 @@ func (c *containerInterop) DispatchStreamOutTask(outSpec *vcontainermodels.Strea
 }
 
 func (c *containerInterop) OpenStreamOutFile(fileId string) (*os.File, error) {
+	c.logger.Info("container-interop-open-stream-out-file")
 	filePath := fmt.Sprintf("%s/%s/%s", c.mountedPath, c.getStreamOutFolder(), fileId)
 
 	file, err := os.Open(filePath)
@@ -366,6 +371,7 @@ func (c *containerInterop) OpenStreamOutFile(fileId string) (*os.File, error) {
 }
 
 func (c *containerInterop) DispatchFolderTask(src, dst string) (string, error) {
+	c.logger.Info("container-interop-dispatch-folder-task")
 	fsync := fsync.NewFSync(c.logger)
 	relativePath := fmt.Sprintf("%s/%s", c.getSwapInFolder(), dst)
 	targetFolder := filepath.Join(c.mountedPath, relativePath)
@@ -412,6 +418,7 @@ func (c *containerInterop) DispatchFolderTask(src, dst string) (string, error) {
 
 // prepare the task
 func (c *containerInterop) PrepareExtractFile(dest string) (string, *os.File, error) {
+	c.logger.Info("container-interop-prepare-extract-file")
 	id, err := uuid.NewV4()
 	if err != nil {
 		c.logger.Fatal("Couldn't generate uuid", err)
@@ -446,6 +453,7 @@ func (c *containerInterop) DispatchExtractFileTask(fileToExtractName, dest, user
 }
 
 func (c *containerInterop) scheduleCommand(taskFolder string, cmd *RunCommand, prio Priority) error {
+	c.logger.Info("container-interop-schedule-command")
 	fileId, err := uuid.NewV4()
 	if err != nil {
 		c.logger.Fatal("Couldn't generate uuid", err)
