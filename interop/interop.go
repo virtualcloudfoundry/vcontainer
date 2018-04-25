@@ -293,7 +293,7 @@ func (c *containerInterop) Open() error {
 
 func (c *containerInterop) Close() error {
 	c.logger.Info("container-interop-close")
-	mounter := mount.NewMounter()
+	mounter := mount.NewMounter(c.logger)
 	err := mounter.Umount(c.mountedPath)
 	if err != nil {
 		c.logger.Error("container-interop-close-failed", err)
@@ -546,7 +546,7 @@ func (c *containerInterop) mountContainerRoot(handle string) (string, error) {
 		azureFilePath = fmt.Sprintf("//%s.file.core.windows.net/%s", storageID, shareName)
 	}
 
-	mounter := mount.NewMounter()
+	mounter := mount.NewMounter(c.logger)
 	err = mounter.Mount(azureFilePath, mountedRootFolder, "cifs", options)
 	if err != nil {
 		c.logger.Error("container-interop-mount-container-root-mount-failed", err)
