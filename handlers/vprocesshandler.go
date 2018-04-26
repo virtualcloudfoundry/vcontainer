@@ -3,6 +3,7 @@ package handlers
 import (
 	"io"
 	"strconv"
+	"time"
 
 	"github.com/virtualcloudfoundry/vcontainer/interop"
 	"github.com/virtualcloudfoundry/vcontainercommon"
@@ -100,6 +101,8 @@ func (v *vprocessHandler) Wait(empty *google_protobuf.Empty, server vcontainermo
 		if waitResponse.Exited {
 			break
 		}
+		// sleep for 5 seconds.
+		time.Sleep(time.Second * 5)
 	}
 	v.logger.Info("vprocess-wait-exited")
 	return nil
