@@ -281,7 +281,7 @@ func (c *containerInterop) WaitForTaskExit(taskId string) error {
 }
 
 func (c *containerInterop) Open() error {
-	c.logger.Info("container-interop-open")
+	c.logger.Info("container-interop-open", lager.Data{"handle": c.handle})
 	mountedRootFolder, err := c.mountContainerRoot(c.handle)
 	if err != nil {
 		c.logger.Error("container-interop-mount-container-root-failed", err)
@@ -292,7 +292,7 @@ func (c *containerInterop) Open() error {
 }
 
 func (c *containerInterop) Close() error {
-	c.logger.Info("container-interop-close")
+	c.logger.Info("container-interop-close", lager.Data{"handle": c.handle})
 	mounter := mount.NewMounter(c.logger)
 	err := mounter.Umount(c.mountedPath)
 	if err != nil {
@@ -308,7 +308,7 @@ func (c *containerInterop) Close() error {
 }
 
 func (c *containerInterop) DispatchRunCommand(cmd RunCommand) (string, error) {
-	c.logger.Info("container-interop-dispatch-run-command")
+	c.logger.Info("container-interop-dispatch-run-command", lager.Data{"handle": c.handle})
 	if err := c.scheduleCommand(c.getOneOffTaskFolder(), &cmd, Run); err != nil {
 		c.logger.Error("container-interop-new-task-failed", err)
 		return "", verrors.New("failed to create task.")
@@ -318,7 +318,7 @@ func (c *containerInterop) DispatchRunCommand(cmd RunCommand) (string, error) {
 }
 
 func (c *containerInterop) DispatchStreamOutTask(outSpec *vcontainermodels.StreamOutSpec) (string, string, error) {
-	c.logger.Info("container-interop-dispatch-stream-out-task")
+	c.logger.Info("container-interop-dispatch-stream-out-task", lager.Data{"handle": c.handle})
 	id, err := uuid.NewV4()
 	if err != nil {
 		c.logger.Fatal("Couldn't generate uuid", err)
@@ -359,7 +359,7 @@ func (c *containerInterop) DispatchStreamOutTask(outSpec *vcontainermodels.Strea
 }
 
 func (c *containerInterop) OpenStreamOutFile(fileId string) (*os.File, error) {
-	c.logger.Info("container-interop-open-stream-out-file")
+	c.logger.Info("container-interop-open-stream-out-file", lager.Data{"handle": c.handle})
 	filePath := fmt.Sprintf("%s/%s/%s", c.mountedPath, c.getStreamOutFolder(), fileId)
 
 	file, err := os.Open(filePath)
@@ -371,7 +371,7 @@ func (c *containerInterop) OpenStreamOutFile(fileId string) (*os.File, error) {
 }
 
 func (c *containerInterop) DispatchFolderTask(src, dst string) (string, error) {
-	c.logger.Info("container-interop-dispatch-folder-task")
+	c.logger.Info("container-interop-dispatch-folder-task", lager.Data{"handle": c.handle})
 	fsync := fsync.NewFSync(c.logger)
 	relativePath := fmt.Sprintf("%s/%s", c.getSwapInFolder(), dst)
 	targetFolder := filepath.Join(c.mountedPath, relativePath)
@@ -418,7 +418,7 @@ func (c *containerInterop) DispatchFolderTask(src, dst string) (string, error) {
 
 // prepare the task
 func (c *containerInterop) PrepareExtractFile(dest string) (string, *os.File, error) {
-	c.logger.Info("container-interop-prepare-extract-file")
+	c.logger.Info("container-interop-prepare-extract-file", lager.Data{"handle": c.handle})
 	id, err := uuid.NewV4()
 	if err != nil {
 		c.logger.Fatal("Couldn't generate uuid", err)
@@ -436,7 +436,7 @@ func (c *containerInterop) PrepareExtractFile(dest string) (string, *os.File, er
 }
 
 func (c *containerInterop) DispatchExtractFileTask(fileToExtractName, dest, user string) (string, error) {
-	c.logger.Info("container-interop-dispatch-extract-file-task")
+	c.logger.Info("container-interop-dispatch-extract-file-task", lager.Data{"handle": c.handle})
 	extractCmd := RunCommand{
 		User: user,
 		Env:  []string{},
@@ -453,7 +453,7 @@ func (c *containerInterop) DispatchExtractFileTask(fileToExtractName, dest, user
 }
 
 func (c *containerInterop) scheduleCommand(taskFolder string, cmd *RunCommand, prio Priority) error {
-	c.logger.Info("container-interop-schedule-command")
+	c.logger.Info("container-interop-schedule-command", lager.Data{"handle": c.handle})
 	fileId, err := uuid.NewV4()
 	if err != nil {
 		c.logger.Fatal("Couldn't generate uuid", err)
@@ -572,7 +572,10 @@ func (c *containerInterop) TaskExited(taskId string) (vcontainermodels.WaitRespo
 		// TODO racing issue, should lock the file.
 		content, err := ioutil.ReadFile(exitFilePath)
 		if err != nil {
-			return vcontainermodels.WaitResponse{}, err
+			return vcontainermodels.WaitResponse{
+				Exited:   false,
+				ExitCode: -1,
+			}, err
 		}
 		exitCode, err := strconv.ParseInt(string(content), 10, 32)
 		if err != nil {
