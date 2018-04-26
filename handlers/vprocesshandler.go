@@ -83,6 +83,8 @@ func (v *vprocessHandler) Wait(empty *google_protobuf.Empty, server vcontainermo
 			v.logger.Error("vprocess-wait-task-exited-failed", err)
 			return verrors.New("get task exit info failed.")
 		}
+
+		v.logger.Info("vprocess-wait-still-waiting", lager.Data{"wait_response": waitResponse})
 		err = server.Send(&waitResponse)
 		if err != nil {
 			if err != io.EOF {
