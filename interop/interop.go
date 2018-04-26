@@ -572,6 +572,10 @@ func (c *containerInterop) TaskExited(taskId string) (vcontainermodels.WaitRespo
 		// TODO racing issue, should lock the file.
 		content, err := ioutil.ReadFile(exitFilePath)
 		if err != nil {
+			c.logger.Error("container-interop-task-exited-read-file-failed", err, lager.Data{
+				"exit_file_path": exitFilePath,
+				"task_id":        taskId,
+			})
 			return vcontainermodels.WaitResponse{
 				Exited:   false,
 				ExitCode: -1,

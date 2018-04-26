@@ -86,7 +86,10 @@ func (v *vprocessHandler) Wait(empty *google_protobuf.Empty, server vcontainermo
 		err = server.Send(&waitResponse)
 		if err != nil {
 			if err != io.EOF {
-				v.logger.Error("vprocess-wait-send-failed", err)
+				v.logger.Error("vprocess-wait-send-failed", err,
+					lager.Data{
+						"container_id": containerId,
+						"process_id":   processId})
 				return verrors.New("send failed.")
 			} else {
 				break
