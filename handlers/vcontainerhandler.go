@@ -268,6 +268,7 @@ func (v *vcontainerHandler) StreamIn(server vcontainermodels.VContainer_StreamIn
 				v.logger.Error("vcontainer-stream-in-recv-failed", err)
 				return verrors.New("recv failed.")
 			} else {
+				v.logger.Info("vcontainer-stream-in-eof-got")
 				break
 			}
 		}
@@ -290,7 +291,7 @@ func (v *vcontainerHandler) StreamIn(server vcontainermodels.VContainer_StreamIn
 				v.logger.Error("vcontainer-stream-in-container-interop-failed-to-open", err)
 				return verrors.New("failed to open container interop.")
 			}
-			// time.Sleep(time.Second * 40)
+			defer containerInterop.Close()
 			filePath, fileToExtract, err = containerInterop.PrepareExtractFile(path)
 
 			if fileToExtract != nil {
@@ -303,27 +304,29 @@ func (v *vcontainerHandler) StreamIn(server vcontainermodels.VContainer_StreamIn
 		if content, ok := streamInSpec.Part.(*vcontainermodels.StreamInSpec_Content); ok {
 			v.logger.Info("vcontainer-stream-in-got", lager.Data{"length": len(content.Content)})
 			if fileToExtract == nil {
+				v.logger.Info("vcontainer-stream-in-file-to-extract-nil")
 				return verrors.New("no file prepared for interop.")
 			}
 			_, err := fileToExtract.Write(content.Content)
 			if err != nil {
+				v.logger.Error("vcontainer-stream-in-write-failed", err)
 				return verrors.New("write file failed.")
 			}
 		}
 	}
-	if containerInterop != nil {
-		if filePath != "" {
-			_, err := containerInterop.DispatchExtractFileTask(filePath, path, user)
-			if err != nil {
-				return verrors.New("dispatch extract file task failed.")
-			}
+	if containerInterop != nil && filePath != "" {
+		_, err := containerInterop.DispatchExtractFileTask(filePath, path, user)
+		if err != nil {
+			v.logger.Error("vcontainer-stream-in-dispatch-extract-file-task-failed", err)
+			return verrors.New("dispatch extract file task failed.")
 		}
-		containerInterop.Close()
 	}
 	// wait for the exit
 	server.SendAndClose(&vcontainermodels.StreamInResponse{
 		Message: "ok",
 	})
+
+	v.logger.Info("vcontainer-stream-in-exited")
 	return nil
 }
 

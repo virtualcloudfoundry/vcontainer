@@ -429,7 +429,7 @@ func (c *containerInterop) PrepareExtractFile(dest string) (string, *os.File, er
 	file, err := os.Create(filePath)
 
 	if err != nil {
-		c.logger.Error("container-interop-dispatch-extract-file-task-failed", err)
+		c.logger.Error("container-interop-dispatch-extract-file-task-failed", err, lager.Data{"filepath": filePath})
 		return "", nil, err
 	}
 	return fileToExtractName, file, nil
