@@ -492,7 +492,8 @@ func (c *containerInterop) scheduleCommand(taskFolder string, cmd *RunCommand, p
 			export APP_ROOT=/home/%s/app
 			%s %s & export CMD_PID=$!
 			echo $CMD_PID > %s
-			wait $CMD_PID`, cmd.User, cmd.User, cmd.User, cmd.Path, strings.Join(args, " "), pidFilePath))
+			wait $CMD_PID
+			`, cmd.User, cmd.User, cmd.User, cmd.Path, strings.Join(args, " "), pidFilePath))
 	// output the pid
 	// and wait for the
 	buffer.WriteString(c.getTaskOutputScript(cmd))
