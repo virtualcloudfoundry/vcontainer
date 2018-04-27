@@ -512,7 +512,7 @@ func (c *containerInterop) getTaskExitFilePath(taskId string) string {
 }
 
 func (c *containerInterop) getTaskOutputScript(cmd *RunCommand) string {
-	taskOutputPath := c.getTaskExitFilePath(cmd.ID)
+	taskOutputPath := filepath.Join(c.mountedPath, c.getSwapOutFolder(), c.getTaskOutputFolder(), cmd.ID+".exit")
 	return fmt.Sprintf("echo $? > %s", taskOutputPath)
 }
 
@@ -561,6 +561,7 @@ func (c *containerInterop) getContainerSwapRootShareFolder(handle string) string
 }
 
 // judge whether the task exited.
+// this would be running in the vcontainer process.
 func (c *containerInterop) TaskExited(taskId string) (vcontainermodels.WaitResponse, error) {
 	exitFilePath := c.getTaskExitFilePath(taskId)
 	c.logger.Info("container-interop-task-exited-check-file", lager.Data{"file": exitFilePath})
