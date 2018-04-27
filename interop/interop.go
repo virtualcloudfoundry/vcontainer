@@ -507,7 +507,7 @@ func (c *containerInterop) scheduleCommand(taskFolder string, cmd *RunCommand, p
 }
 
 func (c *containerInterop) getTaskExitFilePath(taskId string) string {
-	taskOutputPath := filepath.Join(c.getSwapRoot(), c.getSwapOutFolder(), c.getTaskOutputFolder(), taskId+".exit")
+	taskOutputPath := filepath.Join(c.mountedPath, c.getSwapOutFolder(), c.getTaskOutputFolder(), taskId+".exit")
 	return taskOutputPath
 }
 
