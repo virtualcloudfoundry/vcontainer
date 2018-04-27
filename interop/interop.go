@@ -318,14 +318,14 @@ func (c *containerInterop) DispatchRunCommand(cmd RunCommand) (string, error) {
 }
 
 func (c *containerInterop) DispatchStreamOutTask(outSpec *vcontainermodels.StreamOutSpec) (string, string, error) {
-	c.logger.Info("container-interop-dispatch-stream-out-task", lager.Data{"handle": c.handle})
+	c.logger.Info("container-interop-dispatch-stream-out-task", lager.Data{"handle": c.handle, "spec": outSpec})
 	id, err := uuid.NewV4()
 	if err != nil {
 		c.logger.Fatal("Couldn't generate uuid", err)
 		return "", "", err
 	}
 
-	destFolderPath := fmt.Sprintf("%s/%s/%s", c.getSwapRoot(), c.getSwapOutFolder(), c.getStreamOutFolder())
+	destFolderPath := filepath.Join(c.getSwapRoot(), c.getSwapOutFolder(), c.getStreamOutFolder())
 	mkdirCommand := RunCommand{
 		User: outSpec.User,
 		Env:  []string{},
