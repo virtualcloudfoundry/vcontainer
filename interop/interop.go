@@ -371,9 +371,9 @@ func (c *containerInterop) OpenStreamOutFile(fileId string) (*os.File, error) {
 }
 
 func (c *containerInterop) DispatchFolderTask(src, dst string) (string, error) {
-	c.logger.Info("container-interop-dispatch-folder-task", lager.Data{"handle": c.handle})
+	c.logger.Info("container-interop-dispatch-folder-task", lager.Data{"handle": c.handle, "src": src, "dst": dst})
 	fsync := fsync.NewFSync(c.logger)
-	relativePath := fmt.Sprintf("%s/%s", c.getSwapInFolder(), dst)
+	relativePath := filepath.Join(c.getSwapInFolder(), dst)
 	targetFolder := filepath.Join(c.mountedPath, relativePath)
 	err := fsync.CopyFolder(src, targetFolder)
 	if err != nil {
@@ -384,7 +384,7 @@ func (c *containerInterop) DispatchFolderTask(src, dst string) (string, error) {
 	destFolderPath := dst
 
 	mkdirCommand := RunCommand{
-		User: "vcap",
+		User: "root",
 		Env:  []string{},
 		Path: "mkdir",
 		Args: []string{"-p", destFolderPath},
@@ -402,7 +402,7 @@ func (c *containerInterop) DispatchFolderTask(src, dst string) (string, error) {
 	}
 
 	syncCommand := RunCommand{
-		User: "vcap",
+		User: "root",
 		Env:  []string{},
 		Path: "rsync",
 		Args: []string{"-a", fmt.Sprintf("%s/", srcFolderPath), destFolderPath},
@@ -492,12 +492,12 @@ func (c *containerInterop) scheduleCommand(taskFolder string, cmd *RunCommand, p
 			export APP_ROOT=/home/%s/app
 			%s %s & export CMD_PID=$!
 			echo $CMD_PID > %s
-			wait $CMD_PID'
-			`, cmd.User, cmd.User, cmd.User, cmd.Path, strings.Join(args, " "), pidFilePath))
+			wait $CMD_PID`, cmd.User, cmd.User, cmd.User, cmd.Path, strings.Join(args, " "), pidFilePath))
 	// output the pid
 	// and wait for the
 	buffer.WriteString(c.getTaskOutputScript(cmd))
-
+	buffer.WriteString(`'
+	`)
 	_, err = f.WriteString(buffer.String())
 	if err != nil {
 		c.logger.Error("container-interop-new-task-write-failed", err)

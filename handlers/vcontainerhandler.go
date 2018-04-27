@@ -352,7 +352,7 @@ func (v *vcontainerHandler) StreamOut(outSpec *vcontainermodels.StreamOutSpec, s
 	// open the file and write it back.
 	file, err := containerInterop.OpenStreamOutFile(fileId)
 	if err != nil {
-		v.logger.Error("vcontainer-stream-out-open-stream-out-file-failed", err)
+		v.logger.Error("vcontainer-stream-out-open-stream-out-file-failed", err, lager.Data{"file_id": fileId})
 		return verrors.New("vcontainer-stream-out-failed")
 	}
 	data := make([]byte, 32*1024)
