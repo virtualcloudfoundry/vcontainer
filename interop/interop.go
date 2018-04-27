@@ -512,7 +512,7 @@ func (c *containerInterop) getTaskExitFilePath(taskId string) string {
 }
 
 func (c *containerInterop) getTaskOutputScript(cmd *RunCommand) string {
-	taskOutputPath := filepath.Join(c.mountedPath, c.getSwapOutFolder(), c.getTaskOutputFolder(), cmd.ID+".exit")
+	taskOutputPath := filepath.Join(c.getSwapRoot(), c.getSwapOutFolder(), c.getTaskOutputFolder(), cmd.ID+".exit")
 	return fmt.Sprintf("echo $? > %s", taskOutputPath)
 }
 
