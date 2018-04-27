@@ -563,6 +563,7 @@ func (c *containerInterop) getContainerSwapRootShareFolder(handle string) string
 // judge whether the task exited.
 func (c *containerInterop) TaskExited(taskId string) (vcontainermodels.WaitResponse, error) {
 	exitFilePath := c.getTaskExitFilePath(taskId)
+	c.logger.Info("container-interop-task-exited-check-file", lager.Data{"file": exitFilePath})
 	if _, err := os.Stat(exitFilePath); os.IsNotExist(err) {
 		return vcontainermodels.WaitResponse{
 			Exited:   false,
@@ -583,7 +584,14 @@ func (c *containerInterop) TaskExited(taskId string) (vcontainermodels.WaitRespo
 		}
 		exitCode, err := strconv.ParseInt(string(content), 10, 32)
 		if err != nil {
-			return vcontainermodels.WaitResponse{}, err
+			c.logger.Error("container-interop-task-exited-parse-int-failed", err, lager.Data{
+				"exit_file_path": exitFilePath,
+				"task_id":        taskId,
+			})
+			return vcontainermodels.WaitResponse{
+				Exited:   false,
+				ExitCode: -1,
+			}, err
 		}
 		return vcontainermodels.WaitResponse{
 			Exited:   true,
