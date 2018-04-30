@@ -26,7 +26,6 @@ import (
 // 2. one components managing the tasks dispatched to the the containers
 // 	  a. one tasks folder ends with .task
 // 3. one daemon to interate with the tasks.
-
 type Priority int32
 
 const (
@@ -584,11 +583,14 @@ func (c *containerInterop) TaskExited(taskId string) (vcontainermodels.WaitRespo
 				ExitCode: -1,
 			}, err
 		}
-		exitCode, err := strconv.ParseInt(string(content), 10, 32)
+		contentStr := string(content)
+		contentStr = strings.Trim(contentStr, "\n ")
+		exitCode, err := strconv.ParseInt(contentStr, 10, 32)
 		if err != nil {
 			c.logger.Error("container-interop-task-exited-parse-int-failed", err, lager.Data{
 				"exit_file_path": exitFilePath,
 				"task_id":        taskId,
+				"content":        contentStr,
 			})
 			return vcontainermodels.WaitResponse{
 				Exited:   false,
