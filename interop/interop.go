@@ -474,27 +474,22 @@ func (c *containerInterop) scheduleCommand(taskFolder string, cmd *RunCommand, p
 	}
 	var buffer bytes.Buffer
 	buffer.WriteString("#!/bin/bash\n")
-	args := make([]string, len(cmd.Args))
-	for i, _ := range cmd.Args {
-		if cmd.Args[i] == "" {
-			args[i] = "\"\""
-		} else {
-			args[i] = cmd.Args[i]
-		}
-	}
-	pidFilePath := filepath.Join(c.getSwapRoot(), c.getSwapOutFolder(), c.getTaskOutputFolder(), taskId+".pid")
-	// my-app & export APP_PID=$!
-	// wait $APP_PID
+	pidFilePath := filepath.Join(c.getSwapRoot(), c.getSwapOutFolder(), c.getTaskOutputFolder(), fmt.Sprintf("%s.pid", taskId))
+
+	// pre-processing the envs and the args.
+	//
+	processedEnvs := c.getProcessedEnvs(cmd.Env)
+	processedArgs := c.getProcessedArgs(cmd.Args)
 
 	buffer.WriteString(fmt.Sprintf(`su - %s -c 'export HOME=/home/%s/app
-			export PORT=8080
+			%s
 			export APP_ROOT=/home/%s/app
 			%s %s & export CMD_PID=$!
 			echo $CMD_PID > %s
 			wait $CMD_PID
-			`, cmd.User, cmd.User, cmd.User, cmd.Path, strings.Join(args, " "), pidFilePath))
-	// output the pid
-	// and wait for the
+			`, cmd.User, cmd.User, strings.Join(processedEnvs, "\n"), cmd.User, cmd.Path,
+		strings.Join(processedArgs, " "), pidFilePath))
+	// write the return code to the .exit file.
 	buffer.WriteString(c.getTaskOutputScript(cmd))
 	buffer.WriteString(`'
 	`)
@@ -504,6 +499,31 @@ func (c *containerInterop) scheduleCommand(taskFolder string, cmd *RunCommand, p
 		return verrors.New("failed to create entry script.")
 	}
 	return nil
+}
+
+func (c *containerInterop) getProcessedEnvs(envs []string) []string {
+	processedEnvs := make([]string, len(envs))
+	for i, _ := range envs {
+		processedEnvs[i] = fmt.Sprintf("export %s", envs[i])
+	}
+	return processedEnvs
+}
+
+func (c *containerInterop) getProcessedArgs(args []string) []string {
+	processedArgs := make([]string, len(args))
+	for i, _ := range args {
+		if args[i] == "" {
+			processedArgs[i] = "\"\""
+		} else {
+			if strings.Contains(args[i], "=") {
+				firstEqualIndex := strings.Index(args[i], "=")
+				processedArgs[i] = fmt.Sprintf("%s=\"%s\"", args[i][:firstEqualIndex], args[i][firstEqualIndex+1:])
+			} else {
+				processedArgs[i] = args[i]
+			}
+		}
+	}
+	return processedArgs
 }
 
 func (c *containerInterop) getTaskExitFilePath(taskId string) string {
