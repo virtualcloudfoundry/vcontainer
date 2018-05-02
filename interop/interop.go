@@ -29,8 +29,9 @@ import (
 type Priority int32
 
 const (
-	StreamIn Priority = 0
-	Run      Priority = 1
+	StreamIn  Priority = 0
+	StreamOut Priority = 1
+	Run       Priority = 1
 )
 
 type RunCommand struct {
@@ -332,16 +333,16 @@ func (c *containerInterop) DispatchStreamOutTask(outSpec *vcontainermodels.Strea
 		Args: []string{"-p", destFolderPath},
 	}
 
-	if err = c.scheduleCommand(c.getConstantTaskFolder(), &mkdirCommand, StreamIn); err != nil {
-		c.logger.Error("container-interop-new-task-failed", err)
+	if err = c.scheduleCommand(c.getOneOffTaskFolder(), &mkdirCommand, StreamOut); err != nil {
+		c.logger.Error("container-interop-new-task-failed", err, lager.Data{"cmd": mkdirCommand})
 		return "", "", verrors.New("failed to create task.")
 	}
 
-	err = c.WaitForTaskExit(mkdirCommand.ID)
-	if err != nil {
-		c.logger.Error("container-interop-dispatch-folder-task-prepare-failed", err)
+	if err = c.WaitForTaskExit(mkdirCommand.ID); err != nil {
+		c.logger.Error("container-interop-dispatch-folder-task-prepare-failed", err, lager.Data{"cmd": mkdirCommand})
 		return "", "", verrors.New("failed to dispatch folder task.")
 	}
+
 	destFilePath := fmt.Sprintf("%s/%s", destFolderPath, id.String())
 	syncCommand := RunCommand{
 		User: outSpec.User,
@@ -349,9 +350,9 @@ func (c *containerInterop) DispatchStreamOutTask(outSpec *vcontainermodels.Strea
 		Path: "rsync",
 		Args: []string{"-a", outSpec.Path, destFilePath},
 	}
-	c.logger.Info("container-interop-sync-command", lager.Data{"sync_cmd": syncCommand})
+	c.logger.Info("container-interop-sync-command", lager.Data{"cmd": syncCommand})
 	if err = c.scheduleCommand(c.getOneOffTaskFolder(), &syncCommand, Run); err != nil {
-		c.logger.Error("container-interop-new-task-failed", err)
+		c.logger.Error("container-interop-new-task-failed", err, lager.Data{"cmd": syncCommand})
 		return "", "", verrors.New("failed to create task.")
 	}
 	//err = c.WaitForTaskExit(syncCommand.ID)
@@ -453,7 +454,7 @@ func (c *containerInterop) DispatchExtractFileTask(fileToExtractName, dest, user
 }
 
 func (c *containerInterop) scheduleCommand(taskFolder string, cmd *RunCommand, prio Priority) error {
-	c.logger.Info("container-interop-schedule-command", lager.Data{"handle": c.handle})
+	c.logger.Info("container-interop-schedule-command", lager.Data{"handle": c.handle, "cmd": cmd, "prio": prio, "task_folder": taskFolder})
 	fileId, err := uuid.NewV4()
 	if err != nil {
 		c.logger.Fatal("Couldn't generate uuid", err)
