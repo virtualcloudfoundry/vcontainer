@@ -343,6 +343,7 @@ func (v *vcontainerHandler) StreamOut(outSpec *vcontainermodels.StreamOutSpec, s
 	containerInterop.Open()
 	defer containerInterop.Close()
 	taskId, fileId, _ := containerInterop.DispatchStreamOutTask(outSpec)
+	v.logger.Info("vcontainer-stream-out-wait-for-task", lager.Data{"task_id": taskId, "file_id": fileId})
 	err = containerInterop.WaitForTaskExit(taskId)
 	if err != nil {
 		v.logger.Error("vcontainer-stream-out-wait-for-task-exit-failed", err)

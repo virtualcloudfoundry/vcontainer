@@ -349,11 +349,12 @@ func (c *containerInterop) DispatchStreamOutTask(outSpec *vcontainermodels.Strea
 		Path: "rsync",
 		Args: []string{"-a", outSpec.Path, destFilePath},
 	}
-
+	c.logger.Info("container-interop-sync-command", lager.Data{"sync_cmd": syncCommand})
 	if err = c.scheduleCommand(c.getOneOffTaskFolder(), &syncCommand, Run); err != nil {
 		c.logger.Error("container-interop-new-task-failed", err)
 		return "", "", verrors.New("failed to create task.")
 	}
+	//err = c.WaitForTaskExit(syncCommand.ID)
 	return syncCommand.ID, id.String(), nil
 }
 
@@ -363,7 +364,7 @@ func (c *containerInterop) OpenStreamOutFile(fileId string) (*os.File, error) {
 
 	file, err := os.Open(filePath)
 	if err != nil {
-		c.logger.Error("container-interop-open-stream-out-file-failed", err)
+		c.logger.Error("container-interop-open-stream-out-file-failed", err, lager.Data{"file_path": filePath})
 		return nil, verrors.New("open-file-failed")
 	}
 	return file, nil
