@@ -482,15 +482,15 @@ func (c *containerInterop) scheduleCommand(taskFolder string, cmd *RunCommand, p
 	//
 	processedEnvs := c.getProcessedEnvs(cmd.Env)
 	processedArgs := c.getProcessedArgs(cmd.Args)
-
+	errorFilePath := filepath.Join(c.getSwapRoot(), c.getSwapOutFolder(), c.getTaskOutputFolder(), fmt.Sprintf("%s.err", taskId))
 	buffer.WriteString(fmt.Sprintf(`su - %s -c 'export HOME=/home/%s/app
 			%s
 			export APP_ROOT=/home/%s/app
-			%s %s & export CMD_PID=$!
+			%s %s 2>%s & export CMD_PID=$!
 			echo $CMD_PID > %s
 			wait $CMD_PID
 			`, cmd.User, cmd.User, strings.Join(processedEnvs, "\n"), cmd.User, cmd.Path,
-		strings.Join(processedArgs, " "), pidFilePath))
+		strings.Join(processedArgs, " "), errorFilePath, pidFilePath))
 	// write the return code to the .exit file.
 	buffer.WriteString(c.getTaskOutputScript(cmd))
 	buffer.WriteString(`'
