@@ -41,8 +41,8 @@ func (v *vgardenHandler) Capacity(context.Context, *google_protobuf.Empty) (*vco
 func (v *vgardenHandler) Create(ctx context.Context, spec *vcontainermodels.ContainerSpec) (*google_protobuf.Empty, error) {
 	v.logger.Info("vgarden-create")
 	v.logger.Info("vgarden-create-spec", lager.Data{"spec": spec})
-	if len(spec.Handle) != len("3fa79176-be9a-4496-bda2-cdaa06c32480") && // skip for the staging container for now.
-		!strings.HasPrefix(spec.Handle, "executor-healthcheck") {
+	// if len(spec.Handle) != len("3fa79176-be9a-4496-bda2-cdaa06c32480") && // skip for the staging container for now.
+	if !strings.HasPrefix(spec.Handle, "executor-healthcheck") {
 		containerInterop := interop.NewContainerInterop(spec.Handle, v.logger)
 		var err error
 
