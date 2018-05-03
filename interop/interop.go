@@ -333,14 +333,10 @@ func (c *containerInterop) DispatchStreamOutTask(outSpec *vcontainermodels.Strea
 		Args: []string{"-p", destFolderPath},
 	}
 
-	if err = c.scheduleCommand(c.getOneOffTaskFolder(), &mkdirCommand, StreamOut); err != nil {
-		c.logger.Error("container-interop-new-task-failed", err, lager.Data{"cmd": mkdirCommand})
-		return "", "", verrors.New("failed to create task.")
-	}
-
-	if err = c.WaitForTaskExit(mkdirCommand.ID); err != nil {
+	err = c.scheduleAndWait(c.getOneOffTaskFolder(), &mkdirCommand, StreamOut)
+	if err != nil {
 		c.logger.Error("container-interop-dispatch-folder-task-prepare-failed", err, lager.Data{"cmd": mkdirCommand})
-		return "", "", verrors.New("failed to dispatch folder task.")
+		return "", "", verrors.New("failed to schedule or wait for task exit.")
 	}
 
 	destFilePath := fmt.Sprintf("%s/%s", destFolderPath, id.String())
@@ -391,15 +387,24 @@ func (c *containerInterop) DispatchFolderTask(src, dst string) (string, error) {
 		Args: []string{"-p", destFolderPath},
 	}
 
-	if err = c.scheduleCommand(c.getConstantTaskFolder(), &mkdirCommand, StreamIn); err != nil {
-		c.logger.Error("container-interop-new-task-failed", err)
-		return "", verrors.New("failed to create task.")
-	}
-
-	err = c.WaitForTaskExit(mkdirCommand.ID)
+	err = c.scheduleAndWait(c.getConstantTaskFolder(), &mkdirCommand, StreamIn)
 	if err != nil {
 		c.logger.Error("container-interop-dispatch-folder-task-prepare-failed", err)
-		return "", verrors.New("failed to dispatch folder task.")
+		return "", verrors.New("failed to schedule or wait for task exit.")
+	}
+
+	// chmod
+	chmodCommand := RunCommand{
+		User: "root",
+		Env:  []string{},
+		Path: "chmod",
+		Args: []string{"777", destFolderPath},
+	}
+
+	err = c.scheduleAndWait(c.getOneOffTaskFolder(), &chmodCommand, StreamIn)
+	if err != nil {
+		c.logger.Error("container-interop-dispatch-folder-task-prepare-failed", err)
+		return "", verrors.New("failed to change permission.")
 	}
 
 	syncCommand := RunCommand{
@@ -446,20 +451,29 @@ func (c *containerInterop) DispatchExtractFileTask(fileToExtractName, dest, user
 		Path: "mkdir",
 		Args: []string{"-p", dest},
 	}
-	err := c.scheduleCommand(c.getOneOffTaskFolder(), &mkdirCommand, StreamIn)
+
+	err := c.scheduleAndWait(c.getOneOffTaskFolder(), &mkdirCommand, StreamIn)
 	if err != nil {
 		c.logger.Error("container-interop-dispatch-extract-file-task-failed", err)
-		return "", verrors.New("failed to schedule task.")
+		return "", verrors.New("failed to schedule or wait for task exit.")
 	}
 
-	err = c.WaitForTaskExit(mkdirCommand.ID)
+	// chmod
+	chmodCommand := RunCommand{
+		User: "root",
+		Env:  []string{},
+		Path: "chmod",
+		Args: []string{"777", dest},
+	}
+
+	err = c.scheduleAndWait(c.getOneOffTaskFolder(), &chmodCommand, StreamIn)
 	if err != nil {
 		c.logger.Error("container-interop-dispatch-extract-file-task-failed", err)
-		return "", verrors.New("failed to wait for task exit.")
+		return "", verrors.New("failed to change permission.")
 	}
 
 	extractCmd := RunCommand{
-		User: "root",
+		User: user,
 		Env:  []string{},
 		Path: "tar",
 		Args: []string{"-C", dest, "-xf", filepath.Join(c.getSwapRoot(), c.getSwapInFolder(), fileToExtractName)},
@@ -499,17 +513,16 @@ func (c *containerInterop) scheduleCommand(taskFolder string, cmd *RunCommand, p
 	pidFilePath := filepath.Join(c.getSwapRoot(), c.getSwapOutFolder(), c.getTaskOutputFolder(), fmt.Sprintf("%s.pid", taskId))
 
 	// pre-processing the envs and the args.
-	//
 	processedEnvs := c.getProcessedEnvs(cmd.Env)
 	processedArgs := c.getProcessedArgs(cmd.Args)
 	errorFilePath := filepath.Join(c.getSwapRoot(), c.getSwapOutFolder(), c.getTaskOutputFolder(), fmt.Sprintf("%s.err", taskId))
 	buffer.WriteString(fmt.Sprintf(`su - %s -c 'export HOME=/home/%s/app
-			%s
-			export APP_ROOT=/home/%s/app
-			%s %s 2>%s & export CMD_PID=$!
-			echo $CMD_PID > %s
-			wait $CMD_PID
-			`, cmd.User, cmd.User, strings.Join(processedEnvs, "\n"), cmd.User, cmd.Path,
+%s
+export APP_ROOT=/home/%s/app
+%s %s 2>%s & export CMD_PID=$!
+echo $CMD_PID > %s
+wait $CMD_PID
+`, cmd.User, cmd.User, strings.Join(processedEnvs, "\n"), cmd.User, cmd.Path,
 		strings.Join(processedArgs, " "), errorFilePath, pidFilePath))
 	// write the return code to the .exit file.
 	buffer.WriteString(c.getTaskOutputScript(cmd))
@@ -519,6 +532,21 @@ func (c *containerInterop) scheduleCommand(taskFolder string, cmd *RunCommand, p
 	if err != nil {
 		c.logger.Error("container-interop-new-task-write-failed", err)
 		return verrors.New("failed to create entry script.")
+	}
+	return nil
+}
+
+func (c *containerInterop) scheduleAndWait(taskFolder string, cmd *RunCommand, prio Priority) error {
+	err := c.scheduleCommand(taskFolder, cmd, prio)
+	if err != nil {
+		c.logger.Error("container-interop-new-task-failed", err)
+		return verrors.New("failed to create task.")
+	}
+
+	err = c.WaitForTaskExit(cmd.ID)
+	if err != nil {
+		c.logger.Error("container-interop-dispatch-folder-task-prepare-failed", err)
+		return verrors.New("failed to dispatch folder task.")
 	}
 	return nil
 }
