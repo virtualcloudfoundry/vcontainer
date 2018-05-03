@@ -438,6 +438,25 @@ func (c *containerInterop) PrepareExtractFile(dest string) (string, *os.File, er
 
 func (c *containerInterop) DispatchExtractFileTask(fileToExtractName, dest, user string) (string, error) {
 	c.logger.Info("container-interop-dispatch-extract-file-task", lager.Data{"handle": c.handle})
+	// prepare the extract target folder first.
+	mkdirCommand := RunCommand{
+		User: "root",
+		Env:  []string{},
+		Path: "mkdir",
+		Args: []string{"-p", dest},
+	}
+	err := c.scheduleCommand(c.getOneOffTaskFolder(), &mkdirCommand, StreamIn)
+	if err != nil {
+		c.logger.Error("container-interop-dispatch-extract-file-task-failed", err)
+		return "", verrors.New("failed to schedule task.")
+	}
+
+	err = c.WaitForTaskExit(mkdirCommand.ID)
+	if err != nil {
+		c.logger.Error("container-interop-dispatch-extract-file-task-failed", err)
+		return "", verrors.New("failed to wait for task exit.")
+	}
+
 	extractCmd := RunCommand{
 		User: user,
 		Env:  []string{},
