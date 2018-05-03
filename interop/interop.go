@@ -436,6 +436,7 @@ func (c *containerInterop) PrepareExtractFile(dest string) (string, *os.File, er
 	return fileToExtractName, file, nil
 }
 
+// dest should be full path.
 func (c *containerInterop) DispatchExtractFileTask(fileToExtractName, dest, user string) (string, error) {
 	c.logger.Info("container-interop-dispatch-extract-file-task", lager.Data{"handle": c.handle})
 	// prepare the extract target folder first.
@@ -458,7 +459,7 @@ func (c *containerInterop) DispatchExtractFileTask(fileToExtractName, dest, user
 	}
 
 	extractCmd := RunCommand{
-		User: user,
+		User: "root",
 		Env:  []string{},
 		Path: "tar",
 		Args: []string{"-C", dest, "-xf", filepath.Join(c.getSwapRoot(), c.getSwapInFolder(), fileToExtractName)},
