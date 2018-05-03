@@ -40,6 +40,7 @@ type RunCommand struct {
 	Env  []string
 	Path string
 	Args []string
+	Tag  string // for debugging
 }
 
 func NewContainerInterop(handle string, logger lager.Logger) ContainerInterop {
@@ -309,7 +310,7 @@ func (c *containerInterop) Close() error {
 
 func (c *containerInterop) DispatchRunCommand(cmd RunCommand) (string, error) {
 	c.logger.Info("container-interop-dispatch-run-command", lager.Data{"handle": c.handle})
-	if err := c.scheduleCommand(c.getOneOffTaskFolder(), &cmd, Run); err != nil {
+	if err := c.scheduleCommand(c.getOneOffTaskFolder(), &cmd, Run, cmd.Tag); err != nil {
 		c.logger.Error("container-interop-new-task-failed", err)
 		return "", verrors.New("failed to create task.")
 	}
@@ -333,7 +334,7 @@ func (c *containerInterop) DispatchStreamOutTask(outSpec *vcontainermodels.Strea
 		Args: []string{"-p", destFolderPath},
 	}
 
-	err = c.scheduleAndWait(c.getOneOffTaskFolder(), &mkdirCommand, StreamOut)
+	err = c.scheduleAndWait(c.getOneOffTaskFolder(), &mkdirCommand, StreamOut, "mkdir")
 	if err != nil {
 		c.logger.Error("container-interop-dispatch-folder-task-prepare-failed", err, lager.Data{"cmd": mkdirCommand})
 		return "", "", verrors.New("failed to schedule or wait for task exit.")
@@ -347,7 +348,7 @@ func (c *containerInterop) DispatchStreamOutTask(outSpec *vcontainermodels.Strea
 		Args: []string{"-a", outSpec.Path, destFilePath},
 	}
 	c.logger.Info("container-interop-sync-command", lager.Data{"cmd": syncCommand})
-	if err = c.scheduleCommand(c.getOneOffTaskFolder(), &syncCommand, Run); err != nil {
+	if err = c.scheduleCommand(c.getOneOffTaskFolder(), &syncCommand, Run, "rsync"); err != nil {
 		c.logger.Error("container-interop-new-task-failed", err, lager.Data{"cmd": syncCommand})
 		return "", "", verrors.New("failed to create task.")
 	}
@@ -387,7 +388,7 @@ func (c *containerInterop) DispatchFolderTask(src, dst string) (string, error) {
 		Args: []string{"-p", destFolderPath},
 	}
 
-	err = c.scheduleAndWait(c.getConstantTaskFolder(), &mkdirCommand, StreamIn)
+	err = c.scheduleAndWait(c.getConstantTaskFolder(), &mkdirCommand, StreamIn, "mkdir")
 	if err != nil {
 		c.logger.Error("container-interop-dispatch-folder-task-prepare-failed", err)
 		return "", verrors.New("failed to schedule or wait for task exit.")
@@ -401,7 +402,7 @@ func (c *containerInterop) DispatchFolderTask(src, dst string) (string, error) {
 		Args: []string{"777", destFolderPath},
 	}
 
-	err = c.scheduleAndWait(c.getOneOffTaskFolder(), &chmodCommand, StreamIn)
+	err = c.scheduleAndWait(c.getOneOffTaskFolder(), &chmodCommand, StreamIn, "chmod")
 	if err != nil {
 		c.logger.Error("container-interop-dispatch-folder-task-prepare-failed", err)
 		return "", verrors.New("failed to change permission.")
@@ -414,7 +415,7 @@ func (c *containerInterop) DispatchFolderTask(src, dst string) (string, error) {
 		Args: []string{"-a", fmt.Sprintf("%s/", srcFolderPath), destFolderPath},
 	}
 
-	if err = c.scheduleCommand(c.getConstantTaskFolder(), &syncCommand, StreamIn); err != nil {
+	if err = c.scheduleCommand(c.getConstantTaskFolder(), &syncCommand, StreamIn, "rsync"); err != nil {
 		c.logger.Error("container-interop-new-task-failed", err)
 		return "", verrors.New("failed to create task.")
 	}
@@ -452,7 +453,7 @@ func (c *containerInterop) DispatchExtractFileTask(fileToExtractName, dest, user
 		Args: []string{"-p", dest},
 	}
 
-	err := c.scheduleAndWait(c.getOneOffTaskFolder(), &mkdirCommand, StreamIn)
+	err := c.scheduleAndWait(c.getOneOffTaskFolder(), &mkdirCommand, StreamIn, "mkdir")
 	if err != nil {
 		c.logger.Error("container-interop-dispatch-extract-file-task-failed", err)
 		return "", verrors.New("failed to schedule or wait for task exit.")
@@ -466,7 +467,7 @@ func (c *containerInterop) DispatchExtractFileTask(fileToExtractName, dest, user
 		Args: []string{"777", dest},
 	}
 
-	err = c.scheduleAndWait(c.getOneOffTaskFolder(), &chmodCommand, StreamIn)
+	err = c.scheduleAndWait(c.getOneOffTaskFolder(), &chmodCommand, StreamIn, "chmod")
 	if err != nil {
 		c.logger.Error("container-interop-dispatch-extract-file-task-failed", err)
 		return "", verrors.New("failed to change permission.")
@@ -479,7 +480,7 @@ func (c *containerInterop) DispatchExtractFileTask(fileToExtractName, dest, user
 		Args: []string{"-C", dest, "-xf", filepath.Join(c.getSwapRoot(), c.getSwapInFolder(), fileToExtractName)},
 	}
 
-	if err := c.scheduleCommand(c.getOneOffTaskFolder(), &extractCmd, StreamIn); err != nil {
+	if err := c.scheduleCommand(c.getOneOffTaskFolder(), &extractCmd, StreamIn, "tar"); err != nil {
 		c.logger.Error("container-interop-new-task-failed", err)
 		return "", verrors.New("failed to create task.")
 	}
@@ -487,7 +488,7 @@ func (c *containerInterop) DispatchExtractFileTask(fileToExtractName, dest, user
 	return extractCmd.ID, nil
 }
 
-func (c *containerInterop) scheduleCommand(taskFolder string, cmd *RunCommand, prio Priority) error {
+func (c *containerInterop) scheduleCommand(taskFolder string, cmd *RunCommand, prio Priority, tag string) error {
 	c.logger.Info("container-interop-schedule-command", lager.Data{"handle": c.handle, "cmd": cmd, "prio": prio, "task_folder": taskFolder})
 	fileId, err := uuid.NewV4()
 	if err != nil {
@@ -495,7 +496,7 @@ func (c *containerInterop) scheduleCommand(taskFolder string, cmd *RunCommand, p
 		return err
 	}
 	taskId := fileId.String()
-	cmd.ID = taskId
+	cmd.ID = fmt.Sprintf("%s_%s", tag, taskId)
 	taskFolderFullPath := filepath.Join(c.mountedPath, taskFolder, fmt.Sprintf("%d", prio))
 
 	filePath := filepath.Join(taskFolderFullPath, fmt.Sprintf("%s_%d.sh", taskId, time.Now().UnixNano()))
@@ -536,8 +537,8 @@ wait $CMD_PID
 	return nil
 }
 
-func (c *containerInterop) scheduleAndWait(taskFolder string, cmd *RunCommand, prio Priority) error {
-	err := c.scheduleCommand(taskFolder, cmd, prio)
+func (c *containerInterop) scheduleAndWait(taskFolder string, cmd *RunCommand, prio Priority, tag string) error {
+	err := c.scheduleCommand(taskFolder, cmd, prio, tag)
 	if err != nil {
 		c.logger.Error("container-interop-new-task-failed", err)
 		return verrors.New("failed to create task.")
