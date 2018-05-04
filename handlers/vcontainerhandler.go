@@ -45,7 +45,7 @@ func (v *vcontainerHandler) Run(ctx context.Context, spec *vcontainermodels.Proc
 	defer containerInterop.Close()
 	v.logger.Info("vcontainer-run-spec", lager.Data{"spec": spec})
 
-	commandID, err := containerInterop.DispatchRunCommand(interop.RunCommand{
+	taskID, err := containerInterop.DispatchRunTask(interop.RunTask{
 		Path: spec.Path,
 		Args: spec.Args,
 		Env:  spec.Env,
@@ -60,7 +60,7 @@ func (v *vcontainerHandler) Run(ctx context.Context, spec *vcontainermodels.Proc
 
 	// wait for the process id file??
 	return &vcontainermodels.RunResponse{
-		ID:        commandID,
+		ID:        taskID,
 		ProcessId: "",
 	}, nil
 }

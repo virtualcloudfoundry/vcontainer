@@ -42,19 +42,19 @@ func (v *vprocessHandler) Signal(ctx context.Context, req *vcontainermodels.Sign
 		return nil, verrors.New("failed to open container interop.")
 	}
 	defer containerInterop.Close()
-	processId, err := v.getProcessId(ctx)
+	processId, err := v.getTaskId(ctx)
 	if err != nil {
 		v.logger.Error("vprocess-signal-get-process-id-failed", err)
 		return nil, verrors.New("failed to get process id.")
 	}
 
-	killCmd := interop.RunCommand{
+	killCmd := interop.RunTask{
 		User: "",
 		Path: "kill",
 		Args: []string{"-s", strconv.Itoa(int(req.Signal)), processId},
 	}
 
-	cmdID, err := containerInterop.DispatchRunCommand(killCmd)
+	cmdID, err := containerInterop.DispatchRunTask(killCmd)
 	if err != nil {
 		v.logger.Error("vprocess-signal-dispatch-run-command-failed", err)
 	}
@@ -77,34 +77,44 @@ func (v *vprocessHandler) Wait(empty *google_protobuf.Empty, server vcontainermo
 		return verrors.New("failed to open container interop.")
 	}
 	defer containerInterop.Close()
-	processId, err := v.getProcessId(ctx)
+	taskId, err := v.getTaskId(ctx)
 	for {
-		waitResponse, err := containerInterop.TaskExited(processId)
+		waitResponse, err := containerInterop.TaskExited(taskId)
 		if err != nil {
 			v.logger.Error("vprocess-wait-task-exited-failed", err)
 			return verrors.New("get task exit info failed.")
 		}
 
-		v.logger.Info("vprocess-wait-still-waiting", lager.Data{"wait_response": waitResponse})
 		err = server.Send(&waitResponse)
 		if err != nil {
 			if err != io.EOF {
 				v.logger.Error("vprocess-wait-send-failed", err,
 					lager.Data{
 						"container_id": containerId,
-						"process_id":   processId})
+						"task_id":      taskId})
 				return verrors.New("send failed.")
 			} else {
+				v.logger.Info("vprocess-wait-send-eof", lager.Data{
+					"container_id": containerId,
+					"task_id":      taskId})
 				break
 			}
 		}
 		if waitResponse.Exited {
+			v.logger.Info("vprocess-wait-process-exited", lager.Data{
+				"wait_response": waitResponse,
+				"container_id":  containerId,
+				"task_id":       taskId})
 			break
+		} else {
+			v.logger.Info("vprocess-wait-still-waiting", lager.Data{
+				"wait_response": waitResponse,
+				"container_id":  containerId,
+				"task_id":       taskId})
 		}
 		// sleep for 5 seconds.
 		time.Sleep(time.Second * 5)
 	}
-	v.logger.Info("vprocess-wait-exited")
 	return nil
 }
 
@@ -120,14 +130,14 @@ func (v *vprocessHandler) getContainerId(ctx context.Context) (string, error) {
 	return containerID[0], nil
 }
 
-func (v *vprocessHandler) getProcessId(ctx context.Context) (string, error) {
+func (v *vprocessHandler) getTaskId(ctx context.Context) (string, error) {
 	md, ok := metadata.FromContext(ctx)
 	if !ok {
 		return "", verrors.New("context not correct.")
 	}
-	processID := md[vcontainercommon.ProcessIDKey]
-	if processID == nil || len(processID) == 0 {
+	taskID := md[vcontainercommon.TaskIDKey]
+	if taskID == nil || len(taskID) == 0 {
 		return "", verrors.New("no container id in context.")
 	}
-	return processID[0], nil
+	return taskID[0], nil
 }

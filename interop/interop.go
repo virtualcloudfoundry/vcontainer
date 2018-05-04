@@ -34,7 +34,7 @@ const (
 	Run       Priority = 1
 )
 
-type RunCommand struct {
+type RunTask struct {
 	ID   string
 	User string
 	Env  []string
@@ -64,7 +64,7 @@ type ContainerInterop interface {
 	// unmount the swap root folder in the host.
 	Close() error
 	// dispatch one command to the container.
-	DispatchRunCommand(cmd RunCommand) (string, error)
+	DispatchRunTask(cmd RunTask) (string, error)
 	// copy the src folder to the prepared swap root. and write one task into it.
 	DispatchStreamOutTask(outSpec *vcontainermodels.StreamOutSpec) (string, string, error)
 	OpenStreamOutFile(fileId string) (*os.File, error)
@@ -308,9 +308,9 @@ func (c *containerInterop) Close() error {
 	return nil
 }
 
-func (c *containerInterop) DispatchRunCommand(cmd RunCommand) (string, error) {
+func (c *containerInterop) DispatchRunTask(cmd RunTask) (string, error) {
 	c.logger.Info("container-interop-dispatch-run-command", lager.Data{"handle": c.handle})
-	if err := c.scheduleCommand(c.getOneOffTaskFolder(), &cmd, Run, cmd.Tag); err != nil {
+	if err := c.scheduleTask(c.getOneOffTaskFolder(), &cmd, Run, cmd.Tag); err != nil {
 		c.logger.Error("container-interop-new-task-failed", err)
 		return "", verrors.New("failed to create task.")
 	}
@@ -327,7 +327,7 @@ func (c *containerInterop) DispatchStreamOutTask(outSpec *vcontainermodels.Strea
 	}
 
 	destFolderPath := filepath.Join(c.getSwapRoot(), c.getSwapOutFolder(), c.getStreamOutFolder())
-	mkdirCommand := RunCommand{
+	mkdirCommand := RunTask{
 		User: outSpec.User,
 		Env:  []string{},
 		Path: "mkdir",
@@ -341,14 +341,14 @@ func (c *containerInterop) DispatchStreamOutTask(outSpec *vcontainermodels.Strea
 	}
 
 	destFilePath := fmt.Sprintf("%s/%s", destFolderPath, id.String())
-	syncCommand := RunCommand{
+	syncCommand := RunTask{
 		User: outSpec.User,
 		Env:  []string{},
 		Path: "rsync",
 		Args: []string{"-r", outSpec.Path, destFilePath},
 	}
 	c.logger.Info("container-interop-sync-command", lager.Data{"cmd": syncCommand})
-	if err = c.scheduleCommand(c.getOneOffTaskFolder(), &syncCommand, Run, "rsync"); err != nil {
+	if err = c.scheduleTask(c.getOneOffTaskFolder(), &syncCommand, Run, "rsync"); err != nil {
 		c.logger.Error("container-interop-new-task-failed", err, lager.Data{"cmd": syncCommand})
 		return "", "", verrors.New("failed to create task.")
 	}
@@ -381,7 +381,7 @@ func (c *containerInterop) DispatchFolderTask(src, dst string) (string, error) {
 	srcFolderPath := filepath.Join(c.getSwapRoot(), relativePath)
 	destFolderPath := dst
 
-	mkdirCommand := RunCommand{
+	mkdirCommand := RunTask{
 		User: "root",
 		Env:  []string{},
 		Path: "mkdir",
@@ -395,7 +395,7 @@ func (c *containerInterop) DispatchFolderTask(src, dst string) (string, error) {
 	}
 
 	// chmod
-	chmodCommand := RunCommand{
+	chmodCommand := RunTask{
 		User: "root",
 		Env:  []string{},
 		Path: "chmod",
@@ -408,14 +408,14 @@ func (c *containerInterop) DispatchFolderTask(src, dst string) (string, error) {
 		return "", verrors.New("failed to change permission.")
 	}
 
-	syncCommand := RunCommand{
+	syncCommand := RunTask{
 		User: "root",
 		Env:  []string{},
 		Path: "rsync",
 		Args: []string{"-a", fmt.Sprintf("%s/", srcFolderPath), destFolderPath},
 	}
 
-	if err = c.scheduleCommand(c.getConstantTaskFolder(), &syncCommand, StreamIn, "rsync"); err != nil {
+	if err = c.scheduleTask(c.getConstantTaskFolder(), &syncCommand, StreamIn, "rsync"); err != nil {
 		c.logger.Error("container-interop-new-task-failed", err)
 		return "", verrors.New("failed to create task.")
 	}
@@ -446,7 +446,7 @@ func (c *containerInterop) PrepareExtractFile(dest string) (string, *os.File, er
 func (c *containerInterop) DispatchExtractFileTask(fileToExtractName, dest, user string) (string, error) {
 	c.logger.Info("container-interop-dispatch-extract-file-task", lager.Data{"handle": c.handle})
 	// prepare the extract target folder first.
-	mkdirCommand := RunCommand{
+	mkdirCommand := RunTask{
 		User: "root",
 		Env:  []string{},
 		Path: "mkdir",
@@ -460,7 +460,7 @@ func (c *containerInterop) DispatchExtractFileTask(fileToExtractName, dest, user
 	}
 
 	// chmod
-	chmodCommand := RunCommand{
+	chmodCommand := RunTask{
 		User: "root",
 		Env:  []string{},
 		Path: "chmod",
@@ -473,14 +473,14 @@ func (c *containerInterop) DispatchExtractFileTask(fileToExtractName, dest, user
 		return "", verrors.New("failed to change permission.")
 	}
 
-	extractCmd := RunCommand{
+	extractCmd := RunTask{
 		User: user,
 		Env:  []string{},
 		Path: "tar",
 		Args: []string{"-C", dest, "-xf", filepath.Join(c.getSwapRoot(), c.getSwapInFolder(), fileToExtractName)},
 	}
 
-	if err := c.scheduleCommand(c.getOneOffTaskFolder(), &extractCmd, StreamIn, "tar"); err != nil {
+	if err := c.scheduleTask(c.getOneOffTaskFolder(), &extractCmd, StreamIn, "tar"); err != nil {
 		c.logger.Error("container-interop-new-task-failed", err)
 		return "", verrors.New("failed to create task.")
 	}
@@ -488,7 +488,7 @@ func (c *containerInterop) DispatchExtractFileTask(fileToExtractName, dest, user
 	return extractCmd.ID, nil
 }
 
-func (c *containerInterop) scheduleCommand(taskFolder string, cmd *RunCommand, prio Priority, tag string) error {
+func (c *containerInterop) scheduleTask(taskFolder string, cmd *RunTask, prio Priority, tag string) error {
 	c.logger.Info("container-interop-schedule-command", lager.Data{"handle": c.handle, "cmd": cmd, "prio": prio, "task_folder": taskFolder})
 	fileId, err := uuid.NewV4()
 	if err != nil {
@@ -537,8 +537,8 @@ wait $CMD_PID
 	return nil
 }
 
-func (c *containerInterop) scheduleAndWait(taskFolder string, cmd *RunCommand, prio Priority, tag string) error {
-	err := c.scheduleCommand(taskFolder, cmd, prio, tag)
+func (c *containerInterop) scheduleAndWait(taskFolder string, cmd *RunTask, prio Priority, tag string) error {
+	err := c.scheduleTask(taskFolder, cmd, prio, tag)
 	if err != nil {
 		c.logger.Error("container-interop-new-task-failed", err)
 		return verrors.New("failed to create task.")
@@ -582,7 +582,7 @@ func (c *containerInterop) getTaskExitFilePath(taskId string) string {
 	return taskOutputPath
 }
 
-func (c *containerInterop) getTaskOutputScript(cmd *RunCommand) string {
+func (c *containerInterop) getTaskOutputScript(cmd *RunTask) string {
 	taskOutputPath := filepath.Join(c.getSwapRoot(), c.getSwapOutFolder(), c.getTaskOutputFolder(), cmd.ID+".exit")
 	return fmt.Sprintf("echo $? > %s", taskOutputPath)
 }
@@ -637,6 +637,7 @@ func (c *containerInterop) TaskExited(taskId string) (vcontainermodels.WaitRespo
 	exitFilePath := c.getTaskExitFilePath(taskId)
 	c.logger.Info("container-interop-task-exited-check-file", lager.Data{"file": exitFilePath})
 	if _, err := os.Stat(exitFilePath); os.IsNotExist(err) {
+		c.logger.Info("container-interop-task-exited-file-not-exist", lager.Data{"task_id": taskId})
 		return vcontainermodels.WaitResponse{
 			Exited:   false,
 			ExitCode: -1,
@@ -655,6 +656,7 @@ func (c *containerInterop) TaskExited(taskId string) (vcontainermodels.WaitRespo
 			}, err
 		}
 		contentStr := string(content)
+		c.logger.Info("container-interop-task-exited-file-content", lager.Data{"exit_file_content": contentStr})
 		contentStr = strings.Trim(contentStr, "\n ")
 		exitCode, err := strconv.ParseInt(contentStr, 10, 32)
 		if err != nil {
