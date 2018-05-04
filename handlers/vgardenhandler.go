@@ -148,6 +148,10 @@ func (v *vgardenHandler) Destroy(ctx context.Context, handle *google_protobuf.St
 		v.logger.Error("vgarden-destroy-new-aci-client-failed", err)
 		return nil, err
 	}
+	//TODO skip destroy the staging container for debugging, remove this logic after debug.
+	if len(handle.Value) == len("3fa79176-be9a-4496-bda2-cdaa06c32480") {
+		return nil, nil
+	}
 	err = client.DeleteContainerGroup(config.GetVContainerEnvInstance().ResourceGroup, handle.Value)
 	if err != nil {
 		v.logger.Error("vgarden-destroy-delete-container-group-failed", err)
