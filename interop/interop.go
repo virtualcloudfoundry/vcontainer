@@ -345,7 +345,7 @@ func (c *containerInterop) DispatchStreamOutTask(outSpec *vcontainermodels.Strea
 		User: outSpec.User,
 		Env:  []string{},
 		Path: "rsync",
-		Args: []string{"-a", outSpec.Path, destFilePath},
+		Args: []string{"-r", outSpec.Path, destFilePath},
 	}
 	c.logger.Info("container-interop-sync-command", lager.Data{"cmd": syncCommand})
 	if err = c.scheduleCommand(c.getOneOffTaskFolder(), &syncCommand, Run, "rsync"); err != nil {
