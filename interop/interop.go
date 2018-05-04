@@ -495,8 +495,8 @@ func (c *containerInterop) scheduleCommand(taskFolder string, cmd *RunCommand, p
 		c.logger.Fatal("Couldn't generate uuid", err)
 		return err
 	}
-	taskId := fileId.String()
-	cmd.ID = fmt.Sprintf("%s_%s", tag, taskId)
+	taskId := fmt.Sprintf("%s_%s", tag, fileId.String())
+	cmd.ID = taskId
 	taskFolderFullPath := filepath.Join(c.mountedPath, taskFolder, fmt.Sprintf("%d", prio))
 
 	filePath := filepath.Join(taskFolderFullPath, fmt.Sprintf("%s_%d.sh", taskId, time.Now().UnixNano()))
