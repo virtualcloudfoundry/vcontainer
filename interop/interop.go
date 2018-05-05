@@ -67,6 +67,7 @@ type ContainerInterop interface {
 	DispatchRunTask(cmd RunTask) (string, error)
 	// copy the src folder to the prepared swap root. and write one task into it.
 	DispatchStreamOutTask(outSpec *vcontainermodels.StreamOutSpec) (string, string, error)
+	// open the file for read.
 	OpenStreamOutFile(fileId string) (*os.File, error)
 	DispatchFolderTask(src, dest string) (string, error)
 	// prepare an file opened for writing, so the extract task can extract it to the dest folder in the container.
