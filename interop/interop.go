@@ -402,7 +402,7 @@ func (c *containerInterop) DispatchFolderTask(src, dst string) (string, error) {
 		Args: []string{"777", destFolderPath},
 	}
 
-	err = c.scheduleAndWait(c.getOneOffTaskFolder(), &chmodCommand, StreamIn, "chmod")
+	err = c.scheduleAndWait(c.getConstantTaskFolder(), &chmodCommand, StreamIn, "chmod")
 	if err != nil {
 		c.logger.Error("container-interop-dispatch-folder-task-prepare-failed", err)
 		return "", verrors.New("failed to change permission.")
