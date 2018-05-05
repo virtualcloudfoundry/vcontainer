@@ -358,7 +358,7 @@ func (c *containerInterop) DispatchStreamOutTask(outSpec *vcontainermodels.Strea
 
 func (c *containerInterop) OpenStreamOutFile(fileId string) (*os.File, error) {
 	c.logger.Info("container-interop-open-stream-out-file", lager.Data{"handle": c.handle})
-	filePath := fmt.Sprintf("%s/%s/%s", c.mountedPath, c.getStreamOutFolder(), fileId)
+	filePath := fmt.Sprintf("%s/%s/%s/%s", c.mountedPath, c.getTaskOutputFolder(), c.getStreamOutFolder(), fileId)
 
 	file, err := os.Open(filePath)
 	if err != nil {
