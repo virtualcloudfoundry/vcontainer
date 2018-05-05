@@ -213,16 +213,16 @@ func (c *containerInterop) getConstantTaskFolder() string {
 func (c *containerInterop) getEntryScriptContent() string {
 	entryScript := fmt.Sprintf(`#!/bin/bash
 	constant_task_executor() {
-		FILES=%s/%s/%d/*.sh
-		for f in $FILES
+		ls -tcr %s/%s/%d/*.sh |
+		while read f
 		do
 			echo "Executing constant task file: $f ...\n"
 			cat $f
 			bash -c $f
 		done
 
-		FILES=%s/%s/%d/*.sh
-		for f in $FILES
+		ls -tcr %s/%s/%d/*.sh |
+		while read f
 		do
 			echo "Executing constant task file: $f ...\n"
 			cat $f
@@ -234,8 +234,8 @@ func (c *containerInterop) getEntryScriptContent() string {
 			sleep 5
 			# execute the high priority jobs first
 			echo "i am alive"
-			FILES=%s/%s/%d/*.sh
-			for f in $FILES
+			ls -tcr %s/%s/%d/*.sh |
+			while read f
 			do
 				if [ -f $f ]
 				then
@@ -249,8 +249,8 @@ func (c *containerInterop) getEntryScriptContent() string {
 				fi
 			done
 
-			FILES=%s/%s/%d/*.sh
-			for f in $FILES
+			ls -tcr %s/%s/%d/*.sh |
+			while read f
 			do
 				if [ -f $f ]
 				then
