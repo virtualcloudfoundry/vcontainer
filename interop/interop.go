@@ -347,11 +347,11 @@ func (c *containerInterop) DispatchStreamOutTask(outSpec *vcontainermodels.Strea
 		Path: "rsync",
 		Args: []string{"-r", outSpec.Path, destFilePath},
 	}
-	c.logger.Info("container-interop-sync-command", lager.Data{"cmd": syncCommand})
 	if err = c.scheduleTask(c.getOneOffTaskFolder(), &syncCommand, Run, "rsync"); err != nil {
 		c.logger.Error("container-interop-new-task-failed", err, lager.Data{"cmd": syncCommand})
 		return "", "", verrors.New("failed to create task.")
 	}
+	c.logger.Info("container-interop-sync-command", lager.Data{"cmd": syncCommand})
 	//err = c.WaitForTaskExit(syncCommand.ID)
 	return syncCommand.ID, id.String(), nil
 }
