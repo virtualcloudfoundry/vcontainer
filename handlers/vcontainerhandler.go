@@ -373,9 +373,14 @@ func (v *vcontainerHandler) StreamOut(outSpec *vcontainermodels.StreamOutSpec, s
 			Content: data[:n],
 		}
 		err = server.Send(&response)
-		if err != io.EOF {
-			v.logger.Error("vcontainer-stream-out-send-failed", err)
-			return verrors.New("vcontainer-stream-out-failed")
+		if err != nil {
+			if err != io.EOF {
+				v.logger.Error("vcontainer-stream-out-send-failed", err)
+				return verrors.New("vcontainer-stream-out-failed")
+			} else {
+				v.logger.Info("vcontainer-stream-out-send-eof-got", lager.Data{"file_id": fileId})
+				break
+			}
 		} else {
 			v.logger.Info("vcontainer-stream-out-send-succeeded", lager.Data{"container_id": containerId, "file_id": fileId, "len": len(response.Content)})
 		}
