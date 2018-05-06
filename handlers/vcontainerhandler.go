@@ -357,7 +357,8 @@ func (v *vcontainerHandler) StreamOut(outSpec *vcontainermodels.StreamOutSpec, s
 		return verrors.New("vcontainer-stream-out-failed")
 	}
 	defer file.Close()
-	data := make([]byte, 32*1024)
+	// TODO this big buffer is for debug, change it to 32k after debug.
+	data := make([]byte, 32*1024*1024)
 	for {
 		n, err := file.Read(data)
 		if err != nil {
