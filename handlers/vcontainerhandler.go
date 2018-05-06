@@ -375,6 +375,8 @@ func (v *vcontainerHandler) StreamOut(outSpec *vcontainermodels.StreamOutSpec, s
 		if err != io.EOF {
 			v.logger.Error("vcontainer-stream-out-read-failed", err)
 			return verrors.New("vcontainer-stream-out-failed")
+		} else {
+			v.logger.Info("vcontainer-stream-out-send-succeeded", lager.Data{"len": len(response.Content)})
 		}
 	}
 	return nil

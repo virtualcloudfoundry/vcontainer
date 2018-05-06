@@ -69,6 +69,7 @@ type ContainerInterop interface {
 	DispatchStreamOutTask(outSpec *vcontainermodels.StreamOutSpec) (string, string, error)
 	// open the file for read.
 	OpenStreamOutFile(fileId string) (*os.File, error)
+	// dispatch a copy folder task.
 	DispatchFolderTask(src, dest string) (string, error)
 	// prepare an file opened for writing, so the extract task can extract it to the dest folder in the container.
 	PrepareExtractFile(dest string) (string, *os.File, error)
@@ -358,14 +359,15 @@ func (c *containerInterop) DispatchStreamOutTask(outSpec *vcontainermodels.Strea
 }
 
 func (c *containerInterop) OpenStreamOutFile(fileId string) (*os.File, error) {
-	c.logger.Info("container-interop-open-stream-out-file", lager.Data{"handle": c.handle})
-	filePath := fmt.Sprintf("%s/%s/%s/%s", c.mountedPath, c.getSwapOutFolder(), c.getStreamOutFolder(), fileId)
+	c.logger.Info("container-interop-open-stream-out-file", lager.Data{"handle": c.handle, "file_id": fileId})
+	filePath := filepath.Join(c.mountedPath, c.getSwapOutFolder(), c.getStreamOutFolder(), fileId)
 
 	file, err := os.Open(filePath)
 	if err != nil {
-		c.logger.Error("container-interop-open-stream-out-file-failed", err, lager.Data{"file_path": filePath})
+		c.logger.Error("container-interop-open-stream-out-file-failed", err, lager.Data{"handle": c.handle, "file_path": filePath})
 		return nil, verrors.New("open-file-failed")
 	}
+	c.logger.Info("container-interop-open-stream-out-file-succeeded", lager.Data{"handle": c.handle, "file_path": filePath})
 	return file, nil
 }
 
