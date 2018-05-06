@@ -346,10 +346,10 @@ func (c *containerInterop) DispatchStreamOutTask(outSpec *vcontainermodels.Strea
 	syncCommand := RunTask{
 		User: outSpec.User,
 		Env:  []string{},
-		Path: "rsync",
-		Args: []string{"-r", outSpec.Path, destFilePath},
+		Path: "tar",
+		Args: []string{"-cf", destFilePath, outSpec.Path},
 	}
-	if err = c.scheduleTask(c.getOneOffTaskFolder(), &syncCommand, Run, "rsync"); err != nil {
+	if err = c.scheduleTask(c.getOneOffTaskFolder(), &syncCommand, Run, "tar-cf"); err != nil {
 		c.logger.Error("container-interop-new-task-failed", err, lager.Data{"cmd": syncCommand})
 		return "", "", verrors.New("failed to create task.")
 	}
