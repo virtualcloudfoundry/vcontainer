@@ -112,8 +112,8 @@ func (v *vprocessHandler) Wait(empty *google_protobuf.Empty, server vcontainermo
 				"container_id":  containerId,
 				"task_id":       taskId})
 		}
-		// sleep for 5 seconds.
-		time.Sleep(time.Second * 2)
+		// sleep for 10 seconds.
+		time.Sleep(time.Second * 10)
 	}
 	return nil
 }
