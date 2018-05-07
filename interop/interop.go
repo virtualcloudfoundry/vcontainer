@@ -29,7 +29,7 @@ import (
 type Priority int32
 
 const (
-	StreamIn  Priority = 0
+	StreamIn  Priority = 1
 	StreamOut Priority = 1
 	Run       Priority = 1
 )
