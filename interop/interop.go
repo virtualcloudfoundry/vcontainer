@@ -330,7 +330,7 @@ func (c *containerInterop) DispatchStreamOutTask(outSpec *vcontainermodels.Strea
 		Args: []string{"-p", destFolderPath},
 	}
 
-	err = c.scheduleAndWait(c.getOneOffTaskFolder(), &mkdirCommand, StreamOut, "mkdir")
+	err = c.scheduleTask(c.getOneOffTaskFolder(), &mkdirCommand, StreamOut, "mkdir")
 	if err != nil {
 		c.logger.Error("container-interop-dispatch-folder-task-prepare-failed", err, lager.Data{"cmd": mkdirCommand})
 		return "", "", verrors.New("failed to schedule or wait for task exit.")
@@ -385,7 +385,7 @@ func (c *containerInterop) DispatchFolderTask(src, dst string) (string, error) {
 		Args: []string{"-p", destFolderPath},
 	}
 
-	err = c.scheduleAndWait(c.getConstantTaskFolder(), &mkdirCommand, StreamIn, "mkdir")
+	err = c.scheduleTask(c.getConstantTaskFolder(), &mkdirCommand, StreamIn, "mkdir")
 	if err != nil {
 		c.logger.Error("container-interop-dispatch-folder-task-prepare-failed", err)
 		return "", verrors.New("failed to schedule or wait for task exit.")
@@ -399,7 +399,7 @@ func (c *containerInterop) DispatchFolderTask(src, dst string) (string, error) {
 		Args: []string{"777", destFolderPath},
 	}
 
-	err = c.scheduleAndWait(c.getConstantTaskFolder(), &chmodCommand, StreamIn, "chmod")
+	err = c.scheduleTask(c.getConstantTaskFolder(), &chmodCommand, StreamIn, "chmod")
 	if err != nil {
 		c.logger.Error("container-interop-dispatch-folder-task-prepare-failed", err)
 		return "", verrors.New("failed to change permission.")
@@ -450,7 +450,7 @@ func (c *containerInterop) DispatchExtractFileTask(fileToExtractName, dest, user
 		Args: []string{"-p", dest},
 	}
 
-	err := c.scheduleAndWait(c.getOneOffTaskFolder(), &mkdirCommand, StreamIn, "mkdir")
+	err := c.scheduleTask(c.getOneOffTaskFolder(), &mkdirCommand, StreamIn, "mkdir")
 	if err != nil {
 		c.logger.Error("container-interop-dispatch-extract-file-task-failed", err)
 		return "", verrors.New("failed to schedule or wait for task exit.")
@@ -464,7 +464,7 @@ func (c *containerInterop) DispatchExtractFileTask(fileToExtractName, dest, user
 		Args: []string{"777", dest},
 	}
 
-	err = c.scheduleAndWait(c.getOneOffTaskFolder(), &chmodCommand, StreamIn, "chmod")
+	err = c.scheduleTask(c.getOneOffTaskFolder(), &chmodCommand, StreamIn, "chmod")
 	if err != nil {
 		c.logger.Error("container-interop-dispatch-extract-file-task-failed", err)
 		return "", verrors.New("failed to change permission.")
