@@ -385,7 +385,7 @@ func (c *containerInterop) DispatchFolderTask(src, dst string) (string, error) {
 		Args: []string{"-p", destFolderPath},
 	}
 
-	err = c.scheduleTask(c.getConstantTaskFolder(), &mkdirCommand, StreamIn, "mkdir")
+	err = c.scheduleTask(c.getOneOffTaskFolder(), &mkdirCommand, StreamIn, "mkdir")
 	if err != nil {
 		c.logger.Error("container-interop-dispatch-folder-task-prepare-failed", err)
 		return "", verrors.New("failed to schedule or wait for task exit.")
@@ -399,7 +399,7 @@ func (c *containerInterop) DispatchFolderTask(src, dst string) (string, error) {
 		Args: []string{"777", destFolderPath},
 	}
 
-	err = c.scheduleTask(c.getConstantTaskFolder(), &chmodCommand, StreamIn, "chmod")
+	err = c.scheduleTask(c.getOneOffTaskFolder(), &chmodCommand, StreamIn, "chmod")
 	if err != nil {
 		c.logger.Error("container-interop-dispatch-folder-task-prepare-failed", err)
 		return "", verrors.New("failed to change permission.")
@@ -412,7 +412,7 @@ func (c *containerInterop) DispatchFolderTask(src, dst string) (string, error) {
 		Args: []string{"-a", fmt.Sprintf("%s/", srcFolderPath), destFolderPath},
 	}
 
-	if err = c.scheduleTask(c.getConstantTaskFolder(), &syncCommand, StreamIn, "rsync"); err != nil {
+	if err = c.scheduleTask(c.getOneOffTaskFolder(), &syncCommand, StreamIn, "rsync"); err != nil {
 		c.logger.Error("container-interop-new-task-failed", err)
 		return "", verrors.New("failed to create task.")
 	}
