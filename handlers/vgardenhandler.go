@@ -63,6 +63,11 @@ func (v *vgardenHandler) Create(ctx context.Context, spec *vcontainermodels.Cont
 			return nil, errors.New("prepare container interop failed.")
 		}
 
+		if err = v.create(interopInfo.Cmd, interopInfo, spec); err != nil {
+			v.logger.Error("vgarden-create-create-aci-failed", err)
+			return nil, verrors.New("create container failed.")
+		}
+
 		for _, bindMount := range spec.BindMounts {
 			// put the folder
 			if _, err = containerInterop.DispatchFolderTask(bindMount.SrcPath, bindMount.DstPath); err != nil {
@@ -71,10 +76,6 @@ func (v *vgardenHandler) Create(ctx context.Context, spec *vcontainermodels.Cont
 			}
 		}
 
-		if err = v.create(interopInfo.Cmd, interopInfo, spec); err != nil {
-			v.logger.Error("vgarden-create-create-aci-failed", err)
-			return nil, verrors.New("create container failed.")
-		}
 	}
 	return nil, nil
 }
