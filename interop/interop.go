@@ -277,12 +277,6 @@ func (c *containerInterop) getEntryScriptContent() string {
 	return entryScript
 }
 
-func (c *containerInterop) WaitForTaskExit(taskId string) error {
-	time.Sleep(time.Second * 30) // mock for 30 seconds now.
-
-	return nil //verrors.New("not implemented.")
-}
-
 func (c *containerInterop) Open() error {
 	c.logger.Info("container-interop-open", lager.Data{"handle": c.handle})
 	mountedRootFolder, err := c.mountContainerRoot(c.handle)
@@ -632,6 +626,28 @@ func (c *containerInterop) mountContainerRoot(handle string) (string, error) {
 func (c *containerInterop) getContainerSwapRootShareFolder(handle string) string {
 	shareName := fmt.Sprintf("root-%s", handle)
 	return shareName
+}
+
+func (c *containerInterop) WaitForTaskExit(taskId string) error {
+	c.logger.Info("container-interop-wait-for-task-exit", lager.Data{"task_id": taskId})
+	timeSlept := 0
+	for {
+		waitResponse, err := c.TaskExited(taskId)
+		if err != nil {
+			return verrors.New("get task exit info failed.")
+		}
+		if waitResponse.Exited {
+			break
+		}
+		// sleep for 5 seconds.
+		time.Sleep(time.Second * 2)
+		timeSlept += 2
+		if timeSlept > 60 {
+			c.logger.Info("container-interop-wait-for-task-exit-expired", lager.Data{"task_id": taskId})
+			break
+		}
+	}
+	return nil
 }
 
 // judge whether the task exited.
