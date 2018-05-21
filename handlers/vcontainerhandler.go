@@ -140,7 +140,7 @@ func (v *vcontainerHandler) CurrentMemoryLimit(ctx context.Context, in *google_p
 		return nil, err
 	}
 	client, err := vcontainer.NewACIClient()
-	containerGroup, err := client.GetContainerGroup(config.GetVContainerEnvInstance().ResourceGroup, containerId)
+	containerGroup, err := client.GetContainerGroup(config.GetVContainerEnvInstance().ACIConfig.ResourceGroup, containerId)
 	if err != nil {
 		v.logger.Error("vcontainer-properties-get-container-group-failed", err)
 		return nil, verrors.New("failed to get container group.")
@@ -158,7 +158,7 @@ func (v *vcontainerHandler) CurrentCPULimit(ctx context.Context, in *google_prot
 		return nil, err
 	}
 	client, err := vcontainer.NewACIClient()
-	containerGroup, err := client.GetContainerGroup(config.GetVContainerEnvInstance().ResourceGroup, containerId)
+	containerGroup, err := client.GetContainerGroup(config.GetVContainerEnvInstance().ACIConfig.ResourceGroup, containerId)
 	if err != nil {
 		v.logger.Error("vcontainer-properties-get-container-group-failed", err)
 		return nil, verrors.New("failed to get container group.")
@@ -180,7 +180,7 @@ func (v *vcontainerHandler) Properties(ctx context.Context, empty *google_protob
 	v.logger.Info("vcontainer-properties-container-id", lager.Data{"containerid": containerId})
 
 	client, err := vcontainer.NewACIClient()
-	containerGroup, err := client.GetContainerGroup(config.GetVContainerEnvInstance().ResourceGroup, containerId)
+	containerGroup, err := client.GetContainerGroup(config.GetVContainerEnvInstance().ACIConfig.ResourceGroup, containerId)
 	if err != nil {
 		v.logger.Error("vcontainer-properties-get-container-group-failed", err)
 		return nil, verrors.New("failed to get container group.")
@@ -207,7 +207,7 @@ func (v *vcontainerHandler) Property(ctx context.Context, str *google_protobuf.S
 	v.logger.Info("vcontainer-property-container-id", lager.Data{"containerid": containerId})
 
 	client, err := vcontainer.NewACIClient()
-	containerGroup, err := client.GetContainerGroup(config.GetVContainerEnvInstance().ResourceGroup, containerId)
+	containerGroup, err := client.GetContainerGroup(config.GetVContainerEnvInstance().ACIConfig.ResourceGroup, containerId)
 	if err != nil {
 		strV := ""
 		if str != nil {
@@ -237,7 +237,7 @@ func (v *vcontainerHandler) SetProperty(ctx context.Context, kv *vcontainermodel
 	v.logger.Info("vcontainer-set-property-container-id", lager.Data{"containerid": containerId})
 
 	client, err := vcontainer.NewACIClient()
-	containerGroup, err := client.GetContainerGroup(config.GetVContainerEnvInstance().ResourceGroup, containerId)
+	containerGroup, err := client.GetContainerGroup(config.GetVContainerEnvInstance().ACIConfig.ResourceGroup, containerId)
 	if err != nil {
 		v.logger.Error("vcontainer-property-get-container-group-failed", err)
 		return nil, verrors.New("failed to get container group.")
@@ -246,7 +246,7 @@ func (v *vcontainerHandler) SetProperty(ctx context.Context, kv *vcontainermodel
 	containerGroup.Tags[kv.Key] = kv.Value
 	containerGroupToUpdate := aci.ContainerGroup{}
 	containerGroupToUpdate.Tags = containerGroup.Tags
-	_, err = client.UpdateContainerGroup(config.GetVContainerEnvInstance().ResourceGroup, containerId, containerGroupToUpdate)
+	_, err = client.UpdateContainerGroup(config.GetVContainerEnvInstance().ACIConfig.ResourceGroup, containerId, containerGroupToUpdate)
 	if err != nil {
 		return nil, verrors.New("failed to update container group.")
 	}
@@ -267,7 +267,7 @@ func (v *vcontainerHandler) RemoveProperty(ctx context.Context, name *google_pro
 	v.logger.Info("vcontainer-remove-property-container-id", lager.Data{"containerid": containerId})
 
 	client, err := vcontainer.NewACIClient()
-	containerGroup, err := client.GetContainerGroup(config.GetVContainerEnvInstance().ResourceGroup, containerId)
+	containerGroup, err := client.GetContainerGroup(config.GetVContainerEnvInstance().ACIConfig.ResourceGroup, containerId)
 	if err != nil {
 		v.logger.Error("vcontainer-property-get-container-group-failed", err)
 		return nil, verrors.New("failed to get container group.")
@@ -276,7 +276,7 @@ func (v *vcontainerHandler) RemoveProperty(ctx context.Context, name *google_pro
 	delete(containerGroup.Tags, name.Value)
 	containerGroupToUpdate := aci.ContainerGroup{}
 	containerGroupToUpdate.Tags = containerGroup.Tags
-	_, err = client.UpdateContainerGroup(config.GetVContainerEnvInstance().ResourceGroup, containerId, containerGroupToUpdate)
+	_, err = client.UpdateContainerGroup(config.GetVContainerEnvInstance().ACIConfig.ResourceGroup, containerId, containerGroupToUpdate)
 	if err != nil {
 		return nil, verrors.New("failed to remove property.")
 	}
@@ -437,7 +437,7 @@ func (v *vcontainerHandler) Info(ctx context.Context, empty *google_protobuf.Emp
 	v.logger.Info("vcontainer-info-container-id", lager.Data{"containerid": containerId})
 
 	client, err := vcontainer.NewACIClient()
-	containerGroup, err := client.GetContainerGroup(config.GetVContainerEnvInstance().ResourceGroup, containerId)
+	containerGroup, err := client.GetContainerGroup(config.GetVContainerEnvInstance().ACIConfig.ResourceGroup, containerId)
 	if err != nil {
 		v.logger.Error("vcontainer-property-get-container-group-failed", err)
 		return nil, verrors.New("failed to get container group.")

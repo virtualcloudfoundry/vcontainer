@@ -10,6 +10,7 @@ import (
 // TODO encrypt the configs
 type ACIConfig struct {
 	Location        string `json:"location"`
+	ResourceGroup   string `json:"resource_group"`
 	ContainerId     string `json:"container_id"`
 	ContainerSecret string `json:"container_secret"`
 	SubscriptionId  string `json:"subscription_id"`

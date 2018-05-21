@@ -133,7 +133,7 @@ func (v *vgardenHandler) create(cmd []string, interopInfo *interop.ContainerInte
 		return verrors.New("failed to create aci client.")
 	}
 
-	if _, err = client.CreateContainerGroup(config.GetVContainerEnvInstance().ResourceGroup, spec.Handle, containerGroup); err != nil {
+	if _, err = client.CreateContainerGroup(config.GetVContainerEnvInstance().ACIConfig.ResourceGroup, spec.Handle, containerGroup); err != nil {
 		v.logger.Error("vgarden-create-create-container-failed", err)
 		return verrors.New("not implemented")
 	}
@@ -148,7 +148,7 @@ func (v *vgardenHandler) Destroy(ctx context.Context, handle *google_protobuf.St
 		v.logger.Error("vgarden-destroy-new-aci-client-failed", err)
 		return nil, err
 	}
-	err = client.DeleteContainerGroup(config.GetVContainerEnvInstance().ResourceGroup, handle.Value)
+	err = client.DeleteContainerGroup(config.GetVContainerEnvInstance().ACIConfig.ResourceGroup, handle.Value)
 	if err != nil {
 		v.logger.Error("vgarden-destroy-delete-container-group-failed", err)
 		return nil, verrors.New("destroy contaier failed.")
@@ -166,7 +166,7 @@ func (v *vgardenHandler) Containers(ctx context.Context, properties *vcontainerm
 		return nil, verrors.New("new aci client failed.")
 	}
 
-	containerGroups, err := client.ListContainerGroups(config.GetVContainerEnvInstance().ResourceGroup)
+	containerGroups, err := client.ListContainerGroups(config.GetVContainerEnvInstance().ACIConfig.ResourceGroup)
 	if err != nil {
 		return nil, verrors.New("list contaier groups failed.")
 	}
@@ -215,7 +215,7 @@ func (v *vgardenHandler) Lookup(ctx context.Context, handle *google_protobuf.Str
 		return nil, err
 	}
 
-	containerGroups, err := client.ListContainerGroups(config.GetVContainerEnvInstance().ResourceGroup)
+	containerGroups, err := client.ListContainerGroups(config.GetVContainerEnvInstance().ACIConfig.ResourceGroup)
 	if err != nil {
 		return nil, verrors.New("list container groups failed.")
 	}
